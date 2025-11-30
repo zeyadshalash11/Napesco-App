@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Dashboard</h1>
+
+<!-- Section 1: At a Glance Stats -->
+<h3 class="mb-3">Inventory Status</h3>
+<div class="row">
+    <!-- Total Items -->
+    <div class="col-md-3 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Items</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 display-4">{{ total_items }}</div>
+                    </div>
+                    <div class="col-auto"><i class="bi bi-boxes fs-1 text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Available -->
+    <a href="{% url 'inventory_filtered_list' %}?status=available" class="col-md-3 mb-4 text-decoration-none">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Items Available</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 display-4">{{ available_count }}</div>
+                    </div>
+                    <div class="col-auto"><i class="bi bi-check-circle-fill fs-1 text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </a>
+    <!-- On Job -->
+    <a href="{% url 'inventory_filtered_list' %}?status=on_job" class="col-md-3 mb-4 text-decoration-none">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Items On Job</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 display-4">{{ on_job_count }}</div>
+                    </div>
+                    <div class="col-auto"><i class="bi bi-truck fs-1 text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </a>
+    <!-- PENDING INSPECTION -->
+    <a href="{% url 'inventory_filtered_list' %}?status=pending_inspection"
+        class="col-xl-3 col-md-6 mb-4 text-decoration-none">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Pending Inspection</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 display-4">{{ pending_inspection_count }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </a>
+    <!-- Needs Attention -->
+    <a href="{% url 'inventory_filtered_list' %}?status=attention" class="col-md-3 mb-4 text-decoration-none">
+        <div class="card border-left-danger shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Needs Attention</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 display-4">{{ attention_count }}</div>
+                    </div>
+                    <div class="col-auto"><i class="bi bi-exclamation-triangle-fill fs-1 text-gray-300"></i></div>
+                </div>
+            </div>
+        </div>
+    </a>
+</div>
+
+<style>
+    .card .border-left-primary {
+        border-left: .25rem solid #4e73df !important;
+    }
+
+    .card .border-left-success {
+        border-left: .25rem solid #1cc88a !important;
+    }
+
+    .card .border-left-warning {
+        border-left: .25rem solid #f6c23e !important;
+    }
+
+    .card .border-left-danger {
+        border-left: .25rem solid #e74a3b !important;
+    }
+
+    .text-xs {
+        font-size: .7rem;
+    }
+
+    .text-gray-300 {
+        color: #dddfeb !important;
+    }
+</style>
+
+
+<!-- Section 2: Active Jobs List -->
+<h3 class="mt-4 mb-3">Active Jobs</h3>
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Job Number</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in active_jobs %}
+                <tr>
+                    <td><a href="{% url 'job_detail' job.id %}">{{ job.job_number }}</a></td>
+                    <td>{{ job.customer }}</td>
+                    <td>{{ job.date|date:"Y-m-d" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">No active jobs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

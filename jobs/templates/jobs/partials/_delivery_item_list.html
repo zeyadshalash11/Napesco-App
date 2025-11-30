@@ -1,0 +1,17 @@
+<p class="mt-3">Search for items to deliver:</p>
+<select id="delivery-select" name="selected_items" multiple>
+    {% for item in items %}
+    <option value="{{ item.id }}">
+        {{ item.serial_number }} - ({{ item.category.name }})
+    </option>
+    {% endfor %}
+</select>
+
+<script>
+    // Initialize Tom Select on the element we just loaded
+    new TomSelect('#delivery-select', {
+        plugins: ['remove_button'],
+        create: false,
+        placeholder: 'Type to search for a serial number...'
+    });
+</script>

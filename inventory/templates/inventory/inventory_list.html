@@ -1,0 +1,92 @@
+<!-- inventory/templates/inventory/inventory_list.html -->
+{% extends "base.html" %}
+{% load inventory_extras %}
+
+{% block title %}Inventory Summary{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Inventory Summary by Location</h1>
+    <a href="{% url 'inventory_import' %}" class="btn btn-primary">Import Data</a>
+</div>
+
+<!-- NEW SEARCH BAR -->
+<form method="GET" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Search by Category Name..."
+            value="{{ search_query }}">
+        <button class="btn btn-outline-primary" type="submit">Search</button>
+    </div>
+</form>
+<!-- END SEARCH BAR -->
+ 
+<!-- Maadi Yard Table -->
+<h3 class="mt-5">Maadi Yard</h3>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th style="width: 5%;">#</th>
+            <th>Category Name</th>
+            <th>Quantity</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for summary in maadi_summary %}
+        <tr style="cursor: pointer;" onclick="checkAndRefresh('details-{{ summary.category__id }}-maadi')"
+            hx-get="{% url 'get_item_details' category_id=summary.category__id location='maadi-yard' %}"
+            hx-target="#details-{{ summary.category__id }}-maadi" hx-swap="innerHTML">
+            <td>{{ forloop.counter }}</td>
+            <td>{{ summary.category__name|highlight:search_query }}</td>
+            <td>{{ summary.quantity }}</td>
+        </tr>
+        <tr id="details-{{ summary.category__id }}-maadi"></tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No items found in Maadi Yard.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Abu Rudies Yard Table -->
+<h3 class="mt-5">Abu Rudies Yard</h3>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th style="width: 5%;">#</th>
+            <th>Category Name</th>
+            <th>Quantity</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for summary in abu_rudies_summary %}
+        <tr style="cursor: pointer;" onclick="checkAndRefresh('details-{{ summary.category__id }}-aburudies')"
+            hx-get="{% url 'get_item_details' category_id=summary.category__id location='abu-rudies-yard' %}"
+            hx-target="#details-{{ summary.category__id }}-aburudies" hx-swap="innerHTML">
+            <td>{{ forloop.counter }}</td>
+            <td>{{ summary.category__name|highlight:search_query }}</td>
+            <td>{{ summary.quantity }}</td>
+        </tr>
+        <tr id="details-{{ summary.category__id }}-aburudies"></tr>
+        {% empty %}
+        <tr>
+            <td colspan="3" class="text-center">No items found in Abu Rudies Yard.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    function checkAndRefresh(targetId) {
+        const targetRow = document.getElementById(targetId);
+        // If the row already has content, it means it's open.
+        if (targetRow.innerHTML !== '') {
+            // Refresh the page.
+            window.location.reload();
+        }
+        // If the row is empty, do nothing and let HTMX proceed.
+    }
+</script>
+
+
+{% endblock %}

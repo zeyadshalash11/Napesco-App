@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">{{ title }}</h1>
+
+<!-- Search Bar -->
+<form method="GET" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Search by serial number or category..."
+            value="{{ search_query }}">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <button class="btn btn-outline-primary" type="submit">Search</button>
+    </div>
+</form>
+
+<!-- Items Table -->
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Serial Number</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.serial_number }}</td>
+                    <td>{{ item.category.name }}</td>
+                    <td>{{ item.get_location_display }}</td>
+                    <td>
+                        {% if item.status == 'available' %}
+                        <span class="badge bg-success">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'on_job' %}
+                        <span class="badge bg-warning text-dark">{{ item.get_status_display }}</span>
+                        {% elif item.status == 're-cut' %}
+                        <span class="badge bg-info text-dark">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'lih-dbr' %}
+                        <span class="badge bg-danger">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'pending_inspection' %}
+                        <span class="badge bg-primary">{{ item.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted">No items found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Import Results{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Import Process Summary</h1>
+
+{% if summary %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-header">Items Created</div>
+            <div class="card-body">
+                <h5 class="card-title display-4">{{ summary.created }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-dark bg-warning mb-3">
+            <div class="card-header">Items Updated</div>
+            <div class="card-body">
+                <h5 class="card-title display-4">{{ summary.updated }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-header">Errors Found</div>
+            <div class="card-body">
+                <h5 class="card-title display-4">{{ summary.errors|length }}</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if summary.errors %}
+<div class="mt-4">
+    <h3>Error Details</h3>
+    <ul class="list-group">
+        {% for error in summary.errors %}
+        <li class="list-group-item list-group-item-danger">{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert alert-warning">
+    No import summary found. Please upload a file to see the results.
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{% url 'inventory_import' %}" class="btn btn-secondary">Import Another File</a>
+    <a href="{% url 'inventory_list' %}" class="btn btn-primary">Back to Inventory</a>
+</div>
+{% endblock %}

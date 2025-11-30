@@ -1,0 +1,14 @@
+# Git Ignore File
+
+# Django specific
+*.log
+*.pot
+*.pyc
+__pycache__/
+db.sqlite3
+media/
+.venv/
+staticfiles/
+
+# Secrets - DO NOT UPLOAD SETTINGS
+napesco_portal/settings.py

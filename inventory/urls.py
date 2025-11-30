@@ -1,0 +1,12 @@
+# inventory/urls.py
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.inventory_list_view, name='inventory_list'),
+    path('details/<int:category_id>/<str:location>/', views.get_item_details_view, name='get_item_details'),
+    path('details/', views.inventory_filtered_list_view, name='inventory_filtered_list'),
+    path('download-template/', views.download_template_view, name='download_template'),
+    path('import/', views.inventory_import_view, name='inventory_import'),
+    path('import/results/', views.import_results_view, name='import_results'),
+]

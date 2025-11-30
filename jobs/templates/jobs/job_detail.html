@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% load job_tags %}
+{% block title %}Job Details{% endblock %}
+
+{% block content %}
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-success mt-2">{{ message }}</div>
+{% endfor %}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Job: {{ job.job_number }}</h1>
+    <a href="{% url 'job_list' %}" class="btn btn-secondary">Back to Jobs List</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Job Details</div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Customer:</strong> {{ job.customer }}</p>
+                <p><strong>Date:</strong> {{ job.date|date:"Y-m-d" }}</p>
+                <p><strong>Job Number:</strong> {{ job.job_number|default:"N/A" }}</p>
+                <p><strong>Transportation:</strong> {{ job.trans|default:"N/A" }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Rig:</strong> {{ job.rig|default:"N/A" }}</p>
+                <p><strong>Well:</strong> {{ job.well|default:"N/A" }}</p>
+                <p><strong>Location:</strong> {{ job.location|default:"N/A" }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ticket Creation Accordion -->
+<h3 class="mt-4">Create Tickets</h3>
+<!-- This replaces the entire accordion and script block -->
+<div class="row mt-4">
+
+    <!-- DELIVERY TICKET BUILDER -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Create Delivery Ticket</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="delivery-form">
+                    {% csrf_token %}
+
+                    <input type="hidden" name="is_confirmed" id="is-confirmed-input" value="false">
+
+                    <div class="mb-3">
+                        <label for="delivery-select" class="form-label">Search & Select Available Items:</label>
+                        <!-- Tom Select will replace this -->
+                        <select id="delivery-select" name="selected_items" multiple
+                            placeholder="Type a serial number..."></select>
+                    </div>
+                    <button type="submit" name="submit_delivery" class="btn btn-primary mt-3">Create Delivery
+                        Ticket</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- RECEIVING TICKET BUILDER -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Create Receiving Ticket</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="receiving-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="receiving-select" class="form-label">Search & Select On Job Items:</label>
+                        <select id="receiving-select" name="selected_items" multiple
+                            placeholder="Type a serial number..."></select>
+                    </div>
+                    <!-- This container is where status dropdowns will appear -->
+                    <div id="receiving-status-container" class="mt-4"></div>
+                    <button type="submit" name="submit_receiving" class="btn btn-primary mt-3">Create Receiving
+                        Ticket</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NEW SECTION: Items Currently On Job -->
+<h3 class="mt-5">Items Currently On Job</h3>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Serial Number</th>
+            <th>Category</th>
+            <th>Location</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in on_job_items %}
+        <tr>
+            <td>{{ item.serial_number }}</td>
+            <td>{{ item.category.name }}</td>
+            <td>{{ item.get_location_display}}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3" class="text-center text-muted">No items are currently on job.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- NEW ATTACHMENTS SECTION (List View) -->
+<h3 class="mt-5">Job Attachments</h3>
+<div class="row">
+    <!-- Upload Form (Stays on the left) -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Upload New Attachment</h5>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_file" class="form-label">File(s)</label>
+                        <input type="file" name="file" multiple required id="id_file" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_caption" class="form-label">Caption (for all files)</label>
+                        <input type="text" name="caption" maxlength="200" id="id_caption" class="form-control">
+                    </div>
+                    <button type="submit" name="submit_attachment" class="btn btn-primary mt-2">Upload</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachment List (Replaces the gallery) -->
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Uploaded Files</h5>
+                {% if attachments %}
+                <div class="list-group">
+                    {% for attachment in attachments %}
+                    <a href="{{ attachment.file.url }}" target="_blank"
+                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-paperclip me-2"></i>
+                            {# Show caption, or fall back to the filename #}
+                            <strong>{{ attachment.caption|default:attachment.file.name }}</strong>
+                        </div>
+                        <small class="text-muted">{{ attachment.uploaded_at|date:"Y-m-d H:i" }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No attachments for this job yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NEW SECTION: Ticket History -->
+<h3 class="mt-5">Ticket History</h3>
+<div class="list-group">
+    {% for entry in ticket_history %}
+    <div class="list-group-item list-group-item-action">
+
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">
+                {% if entry.type == 'Delivery' %}
+                <span class="badge bg-danger">Delivery</span>
+                {% else %}
+                <span class="badge bg-success">Receiving</span>
+                {% endif %}
+                {{ entry.ticket_obj.ticket_number }}
+            </h5>
+            <div>
+                {# This link will now appear for BOTH ticket types #}
+                <button type="button" class="btn btn-sm btn-outline-secondary export-pdf-btn" data-bs-toggle="modal"
+                    data-bs-target="#pdf-notes-modal"
+                    data-url="{% url 'ticket_pdf' ticket_type=entry.type|lower ticket_id=entry.ticket_obj.id %}">
+                    Export PDF
+                </button>
+                <small class="ms-3">{{ entry.ticket_obj.ticket_date|date:"Y-m-d H:i" }}</small>
+            </div>
+        </div>
+
+        <p class="mb-1">
+            <strong>Items on ticket:</strong>
+            {% for item in entry.items %}
+            {{ item.serial_number }}{% if not forloop.last %}, {% endif %}
+            {% empty %}
+            <span class="text-muted">No items recorded for this ticket.</span>
+            {% endfor %}
+        </p>
+    </div>
+    {% empty %}
+    <p class="text-muted">No tickets have been created for this job yet.</p>
+    {% endfor %}
+</div>
+
+<!-- Contract Confirmation Modal -->
+<div class="modal fade" id="contract-confirmation-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Out of Contract Warning</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>The following items are not in the contract for <strong>{{ job.customer.name }}</strong>:</p>
+                <ul id="out-of-contract-list" class="list-group mb-3"></ul>
+                <p class="fw-bold">Do you want to add them to the ticket anyway?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="proceed-anyway-btn">Proceed Anyway</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Notes Modal -->
+<div class="modal fade" id="pdf-notes-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Notes to PDF</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Enter any notes you want to add to the PDF document.</p>
+                <textarea id="pdf-notes-textarea" class="form-control" rows="4"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <!-- This button's link will be set by JavaScript -->
+                <a href="#" id="generate-pdf-btn" class="btn btn-primary">Generate PDF</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // --- Initialize Tom Select for DELIVERY (with Submit-Time Check) ---
+    const deliveryForm = document.getElementById('delivery-form');
+    const deliveryTomSelect = new TomSelect('#delivery-select', {
+        valueField: 'id',
+        labelField: 'serial',
+        searchField: 'serial',
+        plugins: ['remove_button'],
+        create: false,
+        render: {
+            option: (item, escape) => `<div><strong>${escape(item.serial)}</strong> (${escape(item.category)})<br><small class="text-muted">${escape(item.location)}</small></div>`,
+            item: (item, escape) => `<div>${escape(item.serial)}</div>`
+        },
+        load: (query, callback) => {
+            if (!query.length) return callback();
+            const url = `{% url 'ajax_smart_search' job.id %}?type=available&q=${encodeURIComponent(query)}`;
+            fetch(url).then(res => res.json()).then(callback).catch(() => callback());
+        }
+    });
+
+    // --- Initialize Modal ---
+    const contractModalElement = document.getElementById('contract-confirmation-modal');
+    const contractModal = new bootstrap.Modal(contractModalElement);
+
+    const proceedButton = document.getElementById('proceed-anyway-btn');
+    const confirmedInput = document.getElementById('is-confirmed-input');
+    const deliverySubmitButton = document.querySelector('#delivery-form button[name="submit_delivery"]');
+
+    proceedButton.addEventListener('click', function () {
+        confirmedInput.value = 'true';
+        contractModal.hide();
+        deliverySubmitButton.click(); // This is correct
+    });
+
+    deliveryForm.addEventListener('submit', async function (event) {
+        if (confirmedInput.value === 'true') {
+            confirmedInput.value = 'false'; // Reset for next time
+            return; // Allow submission
+        }
+
+        event.preventDefault(); // Stop submission
+
+        const selectedItemIds = deliveryTomSelect.getValue();
+        if (selectedItemIds.length === 0) {
+            alert('Please select at least one item.');
+            return;
+        }
+
+        const checkUrl = new URL(`{% url 'ajax_bulk_check_contract' job.id %}`, window.location.origin);
+        selectedItemIds.forEach(id => checkUrl.searchParams.append('item_ids[]', id));
+
+        const response = await fetch(checkUrl);
+        const data = await response.json();
+
+        if (data.out_of_contract_serials && data.out_of_contract_serials.length > 0) {
+            // Show the modal if items are out of contract
+            const listElement = document.getElementById('out-of-contract-list');
+            listElement.innerHTML = '';
+            data.out_of_contract_serials.forEach(serial => {
+                listElement.innerHTML += `<li class="list-group-item">${serial}</li>`;
+            });
+            contractModal.show();
+        } else {
+            // --- THE FIX IS HERE ---
+            // If all items are in contract, set the flag and re-submit
+            confirmedInput.value = 'true';
+            deliverySubmitButton.click();
+        }
+    });
+
+
+    // --- Initialize Tom Select for RECEIVING ---
+    const receivingStatusContainer = document.getElementById('receiving-status-container');
+    const receivingTomSelect = new TomSelect('#receiving-select', {
+        valueField: 'id',
+        labelField: 'serial',
+        searchField: 'serial',
+        plugins: ['remove_button'],
+        create: false,
+        render: {
+            option: (item, escape) => `<div><strong>${escape(item.serial)}</strong> (${escape(item.category)})<br><small class="text-muted">${escape(item.location)}</small></div>`,
+            item: (item, escape) => `<div>${escape(item.serial)}</div>`
+        },
+        load: (query, callback) => {
+            if (!query.length) return callback();
+            const url = `{% url 'ajax_smart_search' job.id %}?type=on_job&q=${encodeURIComponent(query)}`;
+            fetch(url).then(res => res.json()).then(callback).catch(() => callback());
+        },
+        onItemAdd: function (value, $item) {
+            const itemName = $item.innerText.replace('×', '').trim();
+            const newStatusDiv = document.createElement('div');
+            newStatusDiv.id = `status-for-${value}`;
+            newStatusDiv.classList.add('row', 'mb-2', 'align-items-center');
+            newStatusDiv.innerHTML = `
+                <div class="col-6"><label for="new_status_${value}" class="form-label">${itemName}</label></div>
+                <div class="col-6">
+                    <select class="form-select form-select-sm" name="new_status_${value}" id="new_status_${value}">
+                      <option value="pending_inspection" selected>Pending Inspection</option> <!-- SET AS DEFAULT -->
+                      <option value="available">Available</option>
+                      <option value="re-cut">Re-cut</option>
+                      <option value="lih-dbr">LIH-DBR</option>
+                    </select>
+                </div>
+            `;
+            receivingStatusContainer.appendChild(newStatusDiv);
+        },
+        onItemRemove: function (value) {
+            const statusDiv = document.getElementById(`status-for-${value}`);
+            if (statusDiv) {
+                statusDiv.remove();
+            }
+        }
+    });
+
+
+    const pdfNotesModal = new bootstrap.Modal(document.getElementById('pdf-notes-modal'));
+    const pdfNotesTextarea = document.getElementById('pdf-notes-textarea');
+    const generatePdfBtn = document.getElementById('generate-pdf-btn');
+
+    // Find all the export buttons and add a click listener to them
+    document.querySelectorAll('.export-pdf-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            // Get the URL from the button that was clicked
+            const url = this.getAttribute('data-url');
+            // Clear any previous notes
+            pdfNotesTextarea.value = '';
+
+            // Set the href of the "Generate" button inside the modal
+            generatePdfBtn.href = url;
+        });
+    });
+
+    // When the "Generate" button is clicked, add the notes to the URL
+    generatePdfBtn.addEventListener('click', function (event) {
+        const notes = pdfNotesTextarea.value;
+        if (notes) {
+            this.href = this.href.split('?')[0] + '?notes=' + encodeURIComponent(notes);
+        }
+
+        // --- ADD THIS LINE ---
+        pdfNotesModal.hide(); // Manually hide the modal
+
+        // Let the link proceed
+    });
+</script>
+{% endblock %}

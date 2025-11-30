@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Import Inventory{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Import Inventory Data</h1>
+
+<div class="alert alert-info">
+    <h4 class="alert-heading">Instructions</h4>
+    <p>Please follow these steps to import your inventory data:</p>
+    <ol>
+        <li>Download the official template file. This ensures your data is in the correct format.</li>
+        <li>Fill in the template with your inventory items. Each row must represent a single, serialized item.</li>
+        <li>Ensure the values in the 'Location' and 'Status' columns exactly match the allowed options.</li>
+        <li>The 'CategoryName' must match a `ProductCategory` that already exists in the system.</li>
+        <li>Save your file and upload it using the form below.</li>
+    </ol>
+    <hr>
+    <a href="{% url 'download_template' %}" class="btn btn-success">Download Template File (.xlsx)</a>
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h5 class="card-title">Upload Your File</h5>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="inventoryFile" class="form-label">Select your .xlsx or .csv file</label>
+                <input class="form-control" type="file" name="inventory_file" id="inventoryFile" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload and Process</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
