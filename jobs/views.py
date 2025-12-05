@@ -62,27 +62,20 @@ def load_on_job_items_view(request, job_id):
 
 def job_detail_view(request, job_id):
     job = get_object_or_404(Job, id=job_id)
-    # Initialize the attachment form for use in both GET and POST contexts
     attachment_form = JobAttachmentForm()
 
     if request.method == 'POST':
-        # --- NEW: Attachment Form Handling ---
-        # Check if the 'submit_attachment' button was pressed
         if 'submit_attachment' in request.POST:
             form = JobAttachmentForm(request.POST, request.FILES)
             if form.is_valid():
-                # Get all the files uploaded (handles multiple file selection)
                 files = request.FILES.getlist('file')
                 caption = form.cleaned_data['caption']
-                # Loop through each file and create an attachment object for it
                 for f in files:
                     JobAttachment.objects.create(job=job, file=f, caption=caption)
                 messages.success(request, f"{len(files)} file(s) uploaded successfully.")
             else:
                 messages.error(request, "There was an error with your upload.")
             return redirect('job_detail', job_id=job.id)
-
-        # --- EXISTING TICKET LOGIC (Wrapped in an 'else' block) ---
         else:
             try:
                 with transaction.atomic():
@@ -96,7 +89,6 @@ def job_detail_view(request, job_id):
                             item.save()
                             ticket.items.add(item)
                         messages.success(request, f"Successfully created Delivery Ticket {ticket.ticket_number}.")
-
                     elif 'submit_receiving' in request.POST:
                         ticket = ReceivingTicket.objects.create(job=job)
                         items_to_process_ids = request.POST.getlist('selected_items')
@@ -114,18 +106,22 @@ def job_detail_view(request, job_id):
                 messages.error(request, f"An error occurred: {e}")
             return redirect('job_detail', job_id=job.id)
 
-    # --- GET LOGIC (Add attachments to context) ---
+    # --- CORRECTED GET LOGIC ---
     delivery_tickets_qs = job.delivery_tickets.all().prefetch_related('items')
     receiving_tickets_qs = job.receiving_tickets.all().prefetch_related('items')
     
     ticket_history_list = []
     for ticket in delivery_tickets_qs:
         ticket_history_list.append({
-            'type': 'Delivery', 'ticket_obj': ticket, 'items': list(ticket.items.all())
+            'type': 'Delivery', 
+            'ticket_obj': ticket, 
+            'items_list': list(ticket.items.all()) # Use 'items_list'
         })
     for ticket in receiving_tickets_qs:
         ticket_history_list.append({
-            'type': 'Receiving', 'ticket_obj': ticket, 'items': list(ticket.items.all())
+            'type': 'Receiving', 
+            'ticket_obj': ticket, 
+            'items_list': list(ticket.items.all()) # Use 'items_list'
         })
 
     ticket_history = sorted(
@@ -144,18 +140,16 @@ def job_detail_view(request, job_id):
                 if not last_receiving or last_delivery.ticket_date > last_receiving.ticket_date:
                     on_job_items.append(item)
     
-    # NEW: Fetch existing attachments for this job
     attachments = job.attachments.all()
     
     context = {
         'job': job,
         'on_job_items': on_job_items,
         'ticket_history': ticket_history,
-        'attachment_form': attachment_form, # NEW: Add form to context
-        'attachments': attachments,         # NEW: Add attachments to context
+        'attachment_form': attachment_form,
+        'attachments': attachments,
     }
     return render(request, 'jobs/job_detail.html', context)
-
 
 def ticket_pdf_view(request, ticket_type, ticket_id):
     ticket = None
@@ -172,7 +166,7 @@ def ticket_pdf_view(request, ticket_type, ticket_id):
         return HttpResponse("Ticket not found or type is invalid", status=404)
 
     job = ticket.job
-    items_on_ticket = ticket.items.all()
+    items_on_ticket = list(ticket.items.all())
 
     # Group items by category and count them
     items_by_category = {}

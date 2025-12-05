@@ -18,6 +18,8 @@ from django.contrib import admin
 from django.urls import path, include, reverse_lazy
 from django.conf import settings               # <-- ADD THIS
 from django.conf.urls.static import static 
+from django.urls import re_path
+from django.views.static import serve
 
 admin.site.site_header = "Napesco Portal Administration"
 admin.site.site_title = "Napesco Portal Admin"
@@ -28,10 +30,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('inventory/', include('inventory.urls')), 
     path('jobs/', include('jobs.urls')), 
-    path('', include('core.urls')),        
+    path('', include('core.urls')),  
+
+    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}), 
+      
 ]
 
 
 # ADD THIS BLOCK AT THE VERY END OF THE FILE
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -191,7 +191,7 @@
 
         <p class="mb-1">
             <strong>Items on ticket:</strong>
-            {% for item in entry.items %}
+            {% for item in entry.items_list %}
             {{ item.serial_number }}{% if not forloop.last %}, {% endif %}
             {% empty %}
             <span class="text-muted">No items recorded for this ticket.</span>

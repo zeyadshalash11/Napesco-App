@@ -16,32 +16,49 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    # Use 'job_number' instead of 'job_name'
     list_display = ('job_number', 'customer', 'date', 'status', 'rig')
-    
-    # Add 'job_type' to the filters
     list_filter = ('job_type', 'customer', 'status', 'date')
-    
-    # Use 'job_number' for searching
     search_fields = ('job_number', 'customer__name', 'rig')
-    
     autocomplete_fields = ('customer',)
     
-    # Make the auto-generated number read-only
-    readonly_fields = ('job_number',)
-    
-    fieldsets = (
-        ('Primary Details', {
-            'fields': ('job_type', 'customer', 'date', 'status', 'job_number')
-        }),
-        ('Location & Equipment', {
-            'fields': ('rig', 'well', 'location', 'trans')
-        }),
-        ('Notes', {
-            'fields': ('description',),
-            'classes': ('collapse',)
-        }),
-    )
+    # We will define readonly_fields and fieldsets inside a method now
+
+    def get_readonly_fields(self, request, obj=None):
+        # If the object already exists (i.e., this is a "Change" page)
+        if obj:
+            return ('job_number',)
+        # Otherwise (this is an "Add" page)
+        return ()
+
+    def get_fieldsets(self, request, obj=None):
+        # If this is a "Change" page for an existing object
+        if obj:
+            return (
+                ('Primary Details', {
+                    'fields': ('job_type', 'customer', 'date', 'status', 'job_number')
+                }),
+                ('Location & Equipment', {
+                    'fields': ('rig', 'well', 'location', 'trans') # <-- ENSURE THIS IS 'trans'
+                }),
+                ('Notes', {
+                    'fields': ('description',),
+                    'classes': ('collapse',)
+                }),
+            )
+        # If this is an "Add" page for a new object
+        else:
+            return (
+                ('Primary Details', {
+                    'fields': ('job_type', 'customer', 'date', 'status')
+                }),
+                ('Location & Equipment', {
+                    'fields': ('rig', 'well', 'location', 'trans') # <-- ENSURE THIS IS 'trans'
+                }),
+                ('Notes', {
+                    'fields': ('description',),
+                    'classes': ('collapse',)
+                }),
+            )
     
 @admin.register(DeliveryTicket)
 class DeliveryTicketAdmin(admin.ModelAdmin):

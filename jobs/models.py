@@ -30,16 +30,15 @@ class Job(models.Model):
     
     # NEW: The job type prefix, chosen by the user
     job_type = models.CharField(max_length=4, choices=JOB_TYPE_CHOICES)
-    
-    # MODIFIED: The auto-generated, unique job number
     job_number = models.CharField(max_length=50, unique=True, blank=True, editable=False)
     
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='jobs')
-    rig = models.CharField(max_length=100, blank=True, null=True)
-    location = models.CharField(max_length=200, blank=True, null=True)
+
+    rig = models.CharField(max_length=100)
+    location = models.CharField(max_length=200)
+    well = models.CharField(max_length=100)
     trans = models.CharField(max_length=100, blank=True, null=True, verbose_name="Transportation")
     date = models.DateField(default=timezone.now)
-    well = models.CharField(max_length=100, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -70,68 +69,65 @@ class Job(models.Model):
         
         super().save(*args, **kwargs)
     
+
 class DeliveryTicket(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='delivery_tickets')
-    ticket_number = models.CharField(max_length=100, unique=True, blank=True)
+    ticket_number = models.CharField(max_length=100, blank=True) # Removed unique=True for now
     ticket_date = models.DateTimeField(auto_now_add=True)
     items = models.ManyToManyField(InventoryItem, related_name='delivery_tickets')
 
+    class Meta:
+        # This ensures that a ticket number is unique FOR A GIVEN JOB
+        unique_together = ('job', 'ticket_number')
+
+    def __str__(self):
+        return self.ticket_number
+
     def save(self, *args, **kwargs):
-        if not self.ticket_number:
+        if not self.pk: # Only generate number for new tickets
+            # --- THE FIX IS HERE: We filter by 'job=self.job' ---
             last_ticket = DeliveryTicket.objects.filter(job=self.job).order_by('id').last()
+            
             new_num = 1
-            if last_ticket:
+            if last_ticket and last_ticket.ticket_number:
                 try:
-                    # Try to get the number part and increment it
-                    last_num_str = last_ticket.ticket_number.split('-')[-1]
-                    last_num = int(last_num_str)
+                    last_num = int(last_ticket.ticket_number.split('-')[-1])
                     new_num = last_num + 1
                 except (ValueError, IndexError):
-                    # If it fails, it's an old format or something unexpected.
-                    # We'll just start the new sequence from 1.
-                    new_num = 1
+                    new_num = 1 # Fallback if parsing fails
             
             self.ticket_number = f"DT-{new_num:03d}"
         
-        # This loop prevents a rare race condition where two tickets get the same number
-        while DeliveryTicket.objects.filter(ticket_number=self.ticket_number).exists():
-            new_num += 1
-            self.ticket_number = f"DT-{new_num:03d}"
-
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.ticket_number
-    
 
 class ReceivingTicket(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='receiving_tickets')
-    ticket_number = models.CharField(max_length=100, unique=True, blank=True)
+    ticket_number = models.CharField(max_length=100, blank=True)
     ticket_date = models.DateTimeField(auto_now_add=True)
     items = models.ManyToManyField(InventoryItem, related_name='receiving_tickets')
 
+    class Meta:
+        unique_together = ('job', 'ticket_number')
+
+    def __str__(self):
+        return self.ticket_number
+
     def save(self, *args, **kwargs):
-        if not self.ticket_number:
+        if not self.pk:
+            # --- THE FIX IS HERE: We filter by 'job=self.job' ---
             last_ticket = ReceivingTicket.objects.filter(job=self.job).order_by('id').last()
+            
             new_num = 1
-            if last_ticket:
+            if last_ticket and last_ticket.ticket_number:
                 try:
-                    last_num_str = last_ticket.ticket_number.split('-')[-1]
-                    last_num = int(last_num_str)
+                    last_num = int(last_ticket.ticket_number.split('-')[-1])
                     new_num = last_num + 1
                 except (ValueError, IndexError):
                     new_num = 1
             
             self.ticket_number = f"RT-{new_num:03d}"
-
-        while ReceivingTicket.objects.filter(ticket_number=self.ticket_number).exists():
-            new_num += 1
-            self.ticket_number = f"RT-{new_num:03d}"
-
+            
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.ticket_number
     
 
 class JobAttachment(models.Model):
