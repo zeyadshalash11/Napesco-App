@@ -8,8 +8,9 @@ from django.http import FileResponse
 from django.contrib.staticfiles import finders
 from .utils import process_inventory_file 
 import pandas as pd
+from django.contrib.auth.decorators import login_required 
 
-
+@login_required
 def inventory_list_view(request):
     search_query = request.GET.get('q', '')
 
@@ -60,6 +61,7 @@ def inventory_list_view(request):
     }
     return render(request, 'inventory/inventory_list.html', context)
 
+@login_required
 def get_item_details_view(request, category_id, location):
     # This view is now simple again. It only fetches and returns details.
     items = InventoryItem.objects.filter(category_id=category_id, location=location)
@@ -68,7 +70,7 @@ def get_item_details_view(request, category_id, location):
     }
     return render(request, 'inventory/_item_details.html', context)
 
-
+@login_required
 def inventory_filtered_list_view(request):
     title = "Inventory Details"
     status_filter = request.GET.get('status', None)
@@ -105,12 +107,13 @@ def inventory_filtered_list_view(request):
     }
     return render(request, 'inventory/inventory_filtered_list.html', context)
 
+@login_required
 def download_template_view(request):
     file_path = finders.find('downloads/import_template.xlsx')
     response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename='import_template.xlsx')
     return response
 
-
+@login_required
 def import_results_view(request):
     summary = request.session.get('import_summary', None)
     # Clear the summary from the session so it doesn't show again on refresh
@@ -119,6 +122,7 @@ def import_results_view(request):
     
     return render(request, 'inventory/import_results.html', {'summary': summary})
 
+@login_required
 def inventory_import_view(request):
     if request.method == 'POST':
         file = request.FILES.get('inventory_file')

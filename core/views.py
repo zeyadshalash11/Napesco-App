@@ -2,9 +2,10 @@ from django.shortcuts import render
 from django.db.models import Count
 from inventory.models import InventoryItem
 from jobs.models import Job
+from django.contrib.auth.decorators import login_required 
 
-# core/views.py
 
+@login_required
 def dashboard_view(request):
     # Get counts for each status with separate, clear queries
     available_count = InventoryItem.objects.filter(status='available').count()

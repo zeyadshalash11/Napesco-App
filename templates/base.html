@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="{% static 'css/bootstrap-icons.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/tom-select.bootstrap5.css' %}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
-    {% htmx_script %} 
+    {% htmx_script %}
 </head>
 
 <body>
@@ -44,6 +44,33 @@
                     </a>
                 </li>
             </ul>
+
+            <!-- ===== NEW, CORRECTED USER/LOGOUT BLOCK ===== -->
+            {% if user.is_authenticated %}
+            <div class="sidebar-footer mt-auto"> <!-- mt-auto pushes this whole div to the bottom -->
+                <ul class="nav flex-column">
+                    <li class="nav-item" style="font-size: 0.85rem;"> <!-- Smaller font size for this item -->
+                        <div class="nav-link disabled" style="color: rgba(255,255,255,.8);">
+                            <i class="bi bi-person-check-fill me-2"></i>
+                            <span class="link-text">Welcome, {{ user.username }}</span>
+                        </div>
+                    </li>
+                    <li class="nav-item" style="font-size: 0.85rem;"> <!-- Smaller font size for this item -->
+                        <!-- This is now a form styled to look like a link -->
+                        <form method="post" action="{% url 'logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link"
+                                style="border: none; background: none; width: 100%; text-align: left; cursor: pointer;">
+                                <i class="bi bi-box-arrow-right me-2"></i>
+                                <span class="link-text">Logout</span>
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+            <!-- ===== END OF NEW BLOCK ===== -->
+
         </nav>
 
         <!-- Main Content Area -->

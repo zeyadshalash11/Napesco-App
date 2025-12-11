@@ -15,7 +15,10 @@ import base64
 from django.contrib.staticfiles import finders
 from django.http import JsonResponse
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from .forms import JobAttachmentForm, JobForm 
 
+@login_required
 def job_list_view(request):
     search_query = request.GET.get('q', '')
     queryset = Job.objects.all()
@@ -35,12 +38,13 @@ def job_list_view(request):
     }
     return render(request, 'jobs/job_list.html', context)
 
+@login_required
 def load_available_items_view(request, job_id):
     location = request.GET.get('location')
     items = InventoryItem.objects.filter(status='available', location=location)
     return render(request, 'jobs/partials/_delivery_item_list.html', {'items': items})
 
-
+@login_required
 def load_on_job_items_view(request, job_id):
     job = get_object_or_404(Job, id=job_id) # Get the job object
     
@@ -60,6 +64,7 @@ def load_on_job_items_view(request, job_id):
 
     return render(request, 'jobs/partials/_receiving_item_list.html', {'items': items_to_receive})
 
+@login_required
 def job_detail_view(request, job_id):
     job = get_object_or_404(Job, id=job_id)
     attachment_form = JobAttachmentForm()
@@ -80,7 +85,7 @@ def job_detail_view(request, job_id):
             try:
                 with transaction.atomic():
                     if 'submit_delivery' in request.POST:
-                        ticket = DeliveryTicket.objects.create(job=job)
+                        ticket = DeliveryTicket.objects.create(job=job, created_by=request.user)
                         items_to_process = InventoryItem.objects.filter(id__in=request.POST.getlist('selected_items'), status='available')
                         if len(items_to_process) != len(request.POST.getlist('selected_items')):
                             raise Exception("Some selected items are no longer available. Please reload and try again.")
@@ -90,7 +95,7 @@ def job_detail_view(request, job_id):
                             ticket.items.add(item)
                         messages.success(request, f"Successfully created Delivery Ticket {ticket.ticket_number}.")
                     elif 'submit_receiving' in request.POST:
-                        ticket = ReceivingTicket.objects.create(job=job)
+                        ticket = ReceivingTicket.objects.create(job=job, created_by=request.user)
                         items_to_process_ids = request.POST.getlist('selected_items')
                         if not items_to_process_ids:
                             raise Exception("You must select at least one item to receive.")
@@ -151,6 +156,7 @@ def job_detail_view(request, job_id):
     }
     return render(request, 'jobs/job_detail.html', context)
 
+@login_required
 def ticket_pdf_view(request, ticket_type, ticket_id):
     ticket = None
     template_name = '' # Variable to hold the template path
@@ -166,7 +172,8 @@ def ticket_pdf_view(request, ticket_type, ticket_id):
         return HttpResponse("Ticket not found or type is invalid", status=404)
 
     job = ticket.job
-    items_on_ticket = list(ticket.items.all())
+    items_on_ticket = list(ticket.items.select_related('category').all())
+
 
     # Group items by category and count them
     items_by_category = {}
@@ -174,29 +181,42 @@ def ticket_pdf_view(request, ticket_type, ticket_id):
         category_name = item.category.name
         if category_name not in items_by_category:
             # Initialize with a count and a list for serials
-            items_by_category[category_name] = {'count': 0, 'serials': []}
+            items_by_category[category_name] = {'count': 0, 'serials': [], 'unit': item.category.unit}
         
         # Increment the count and add the serial number
         items_by_category[category_name]['count'] += 1
         items_by_category[category_name]['serials'].append(item.serial_number)
     # This logic for embedding the logo is the same for both
 
-    logo_path = finders.find('img/napesco_logo.png')
-    encoded_string = ""
-    if logo_path:
-        with open(logo_path, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-    logo_data_uri = f"data:image/webp;base64,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,{encoded_string}"
-     
+    # 1. Get the logged-in user's full name. Fallback to username if not set.
+    driver_name = request.GET.get('driver_name', '')
+    truck_no = request.GET.get('truck_no', '')
     notes_text = request.GET.get('notes', '')
- 
+    # For delivery tickets, we also get the id_license
+    id_license = request.GET.get('id_license', '') 
+
+    # Initialize context variables
     context = {
         'ticket': ticket,
         'job': job,
         'items_by_category': items_by_category,
-        'logo_data_uri': logo_data_uri,
+        'driver_name': driver_name,
+        'truck_no': truck_no,
         'notes': notes_text,
+        'id_license': id_license, # Pass it for delivery tickets
     }
+
+    # Now, get the user's name from the correct source
+    if ticket.created_by:
+        creator_name = ticket.created_by.get_full_name() or ticket.created_by.username
+    else:
+        creator_name = "N/A" # Fallback if ticket has no creator
+
+    # Add the correct variable to the context based on ticket type
+    if ticket_type == 'delivery':
+        context['delivered_by'] = creator_name
+    elif ticket_type == 'receiving':
+        context['received_by'] = creator_name
 
     html_string = render_to_string(template_name, context)
     pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri()).write_pdf()
@@ -206,6 +226,7 @@ def ticket_pdf_view(request, ticket_type, ticket_id):
     
     return response
 
+@login_required
 def end_job_view(request, job_id):
     job = get_object_or_404(Job, id=job_id)
 
@@ -240,7 +261,7 @@ def end_job_view(request, job_id):
     
     return redirect('job_list')
 
-
+@login_required
 def reopen_job_view(request, job_id):
     job = get_object_or_404(Job, id=job_id)
     job.status = 'open'
@@ -249,8 +270,7 @@ def reopen_job_view(request, job_id):
     return redirect('job_list')
 
 
-# Add this new view and delete the old search_..._views
-
+@login_required
 def smart_search_items_view(request, job_id):
     query = request.GET.get('q', '').strip()
     # 'search_type' will be 'available' or 'on_job'
@@ -290,7 +310,7 @@ def smart_search_items_view(request, job_id):
     
     return JsonResponse(results, safe=False)
 
-
+@login_required
 def bulk_check_contract_view(request, job_id):
     item_ids = request.GET.getlist('item_ids[]')
     if not item_ids:
@@ -313,3 +333,20 @@ def bulk_check_contract_view(request, job_id):
 
     except Job.DoesNotExist:
         return JsonResponse({'error': 'Job not found'}, status=404)
+    
+
+@login_required 
+def job_create_view(request):
+    if request.method == 'POST':
+        form = JobForm(request.POST)
+        if form.is_valid():
+            new_job = form.save() # This automatically triggers your model's save() method!
+            messages.success(request, f"Successfully created Job: {new_job.job_number}")
+            return redirect('job_detail', job_id=new_job.id) # Redirect to the new job's detail page
+    else:
+        form = JobForm()
+
+    context = {
+        'form': form
+    }
+    return render(request, 'jobs/job_form.html', context)    

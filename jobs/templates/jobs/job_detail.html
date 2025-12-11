@@ -181,7 +181,7 @@
             <div>
                 {# This link will now appear for BOTH ticket types #}
                 <button type="button" class="btn btn-sm btn-outline-secondary export-pdf-btn" data-bs-toggle="modal"
-                    data-bs-target="#pdf-notes-modal"
+                    data-bs-target="#pdf-info-modal" data-ticket-type="{{ entry.type }}" <-- ADD THIS LINE
                     data-url="{% url 'ticket_pdf' ticket_type=entry.type|lower ticket_id=entry.ticket_obj.id %}">
                     Export PDF
                 </button>
@@ -225,21 +225,36 @@
 </div>
 
 <!-- PDF Notes Modal -->
-<div class="modal fade" id="pdf-notes-modal" tabindex="-1">
+<div class="modal fade" id="pdf-info-modal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add Notes to PDF</h5>
+                <h5 class="modal-title">Enter PDF Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Enter any notes you want to add to the PDF document.</p>
-                <textarea id="pdf-notes-textarea" class="form-control" rows="4"></textarea>
+                <form id="pdf-info-form">
+                    <div class="mb-3">
+                        <label for="driverName" class="form-label">Driver's Name</label>
+                        <input type="text" class="form-control" id="driverName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="idLicense" class="form-label">ID/License No.</label>
+                        <input type="text" class="form-control" id="idLicense">
+                    </div>
+                    <div class="mb-3">
+                        <label for="truckNo" class="form-label">Truck No.</label>
+                        <input type="text" class="form-control" id="truckNo">
+                    </div>
+                    <div class="mb-3">
+                        <label for="pdfNotesTextarea" class="form-label">Notes</label>
+                        <textarea id="pdfNotesTextarea" class="form-control" rows="4"></textarea>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <!-- This button's link will be set by JavaScript -->
-                <a href="#" id="generate-pdf-btn" class="btn btn-primary">Generate PDF</a>
+                <button type="button" id="generate-pdf-btn" class="btn btn-primary">Generate PDF</button>
             </div>
         </div>
     </div>
@@ -363,34 +378,49 @@
     });
 
 
-    const pdfNotesModal = new bootstrap.Modal(document.getElementById('pdf-notes-modal'));
-    const pdfNotesTextarea = document.getElementById('pdf-notes-textarea');
+    const pdfInfoModalEl = document.getElementById('pdf-info-modal');
+    const pdfInfoModal = new bootstrap.Modal(pdfInfoModalEl);
     const generatePdfBtn = document.getElementById('generate-pdf-btn');
+    const pdfInfoForm = document.getElementById('pdf-info-form');
+    const idLicenseField = document.getElementById('idLicense').parentElement; // Get the parent div
+    let currentPdfUrl = '';
 
-    // Find all the export buttons and add a click listener to them
-    document.querySelectorAll('.export-pdf-btn').forEach(button => {
-        button.addEventListener('click', function () {
-            // Get the URL from the button that was clicked
-            const url = this.getAttribute('data-url');
-            // Clear any previous notes
-            pdfNotesTextarea.value = '';
+    // When the modal is about to be shown...
+    pdfInfoModalEl.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        currentPdfUrl = button.getAttribute('data-url');
+        const ticketType = button.getAttribute('data-ticket-type');
 
-            // Set the href of the "Generate" button inside the modal
-            generatePdfBtn.href = url;
-        });
-    });
-
-    // When the "Generate" button is clicked, add the notes to the URL
-    generatePdfBtn.addEventListener('click', function (event) {
-        const notes = pdfNotesTextarea.value;
-        if (notes) {
-            this.href = this.href.split('?')[0] + '?notes=' + encodeURIComponent(notes);
+        // THIS IS THE NEW LOGIC:
+        // Show/hide the ID/License field based on the ticket type
+        if (ticketType === 'Receiving') {
+            idLicenseField.style.display = 'none'; // Hide it for receiving tickets
+        } else {
+            idLicenseField.style.display = 'block'; // Show it for delivery tickets
         }
-
-        // --- ADD THIS LINE ---
-        pdfNotesModal.hide(); // Manually hide the modal
-
-        // Let the link proceed
     });
+
+    // When the user clicks the final "Generate PDF" button (this part is the same as before)
+    generatePdfBtn.addEventListener('click', function () {
+        const driverName = document.getElementById('driverName').value;
+        const idLicense = document.getElementById('idLicense').value;
+        const truckNo = document.getElementById('truckNo').value;
+        const notes = document.getElementById('pdfNotesTextarea').value;
+
+        const finalUrl = new URL(currentPdfUrl, window.location.origin);
+        finalUrl.searchParams.append('driver_name', driverName);
+        finalUrl.searchParams.append('id_license', idLicense);
+        finalUrl.searchParams.append('truck_no', truckNo);
+        finalUrl.searchParams.append('notes', notes);
+
+        pdfInfoModal.hide();
+        window.location.href = finalUrl.href;
+    });
+
+    // Clear the form when the modal is closed
+    pdfInfoModalEl.addEventListener('hidden.bs.modal', function () {
+        pdfInfoForm.reset();
+    });
+
 </script>
 {% endblock %}

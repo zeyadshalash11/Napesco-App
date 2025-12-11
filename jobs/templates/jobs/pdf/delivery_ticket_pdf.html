@@ -8,162 +8,53 @@
     <style>
         @page {
             size: A4;
-            margin: 1.5cm;
+            margin-top: 3cm;
+            margin-bottom: 3.2cm;
+            margin-left: 1.5cm;
+            margin-right: 1.5cm;
+
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9pt;
+                color: #666;
+            }
         }
 
         body {
             font-family: 'Roboto', 'Helvetica', sans-serif;
             font-size: 10pt;
-            color: #333;
+            color: #222;
         }
 
-        /* --- HEADER --- */
-        .header {
-            position: fixed;
-            top: -1.5cm;
-            /* Positioned in the top margin space */
-            left: 0;
-            right: 0;
-            height: 2.5cm;
-        }
-
-        .header-content {
-            border-bottom: 2px solid #000;
-            padding-bottom: 0.5cm;
-        }
-
-        .header-left {
-            float: left;
-            width: 25%;
-        }
-
-        .header-left img {
-            max-height: 2.2cm;
-            max-width: 100%;
-        }
-
-        .header-right {
-            float: right;
-            width: 73%;
-            text-align: right;
-            line-height: 1.4;
-        }
-
-        .header-main-text {
-            font-size: 11pt;
-            font-weight: bold;
-            margin: 0;
-        }
-
-        .header-sub-text {
-            font-size: 8pt;
-            color: #555;
-            margin: 0;
-        }
-
-        /* --- CONTENT --- */
-        .main-content {
-            padding-top: 2.5cm;
-            /* Space to clear the fixed header */
-        }
-
-        .title {
-            text-align: center;
-            font-size: 18pt;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 0.6cm;
-            text-transform: uppercase;
-        }
-    
-        .job-details {
-            border: 1px solid #ccc;
-            padding: 12px;
-            margin-bottom: 0.8cm;
-            border-radius: 5px;
-        }
-    
-        /* --- ITEMS TABLE --- */
-        .items-section h4 {
-            font-size: 14pt;
-            color: #333;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-        }
-
-        .items-table {
+        .master-layout {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
-            page-break-inside: auto;
-            /* Allow table to split */
         }
 
-        .items-table thead {
+        .report-header {
             display: table-header-group;
-            /* Repeat header on new pages */
         }
 
-        .items-table tbody tr {
-            page-break-inside: avoid;
-            /* Try not to split a single row */
+        .report-footer {
+            display: table-footer-group;
         }
 
-        /* ... all your other table styles ... */
-
-        /* --- NOTES & FOOTER CONTENT (Now in the normal flow) --- */
-        .notes-section {
-            margin-top: 1.5cm;
-            /* Add any other styling you want here */
-        }
-
-        .signature-section {
-            page-break-inside: avoid;
-            /* CRITICAL: Prevents this block from splitting */
-            margin-top: 1.5cm;
-            border: 1px solid #000;
-            padding: 10px;
-            font-size: 9pt;
-        }
-
-        .contact-info {
-            page-break-before: auto;
-            /* Default behavior, fine here */
+        /* --- Header --- */
+        .title {
             text-align: center;
-            border-top: 1px solid #ccc;
-            padding-top: 5px;
-            margin-top: 10px;
-            font-size: 9pt;
-            color: #555;
+            font-size: 16pt;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
         }
 
-        /* --- PASTE ALL YOUR OTHER DETAILED STYLES BELOW --- */
-        .signature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-
-        .signature-box {
-            margin-top: 8px;
-        }
-
-        .signature-box .label {
-            font-size: 8pt;
-            color: #555;
-        }
-
-        .signature-box .line {
-            border-top: 1px solid #333;
-            margin-top: 18px;
-        }
-
-        .section-title {
-            font-size: 10pt;
-            font-weight: bold;
-            margin-bottom: 5px;
-            text-align: center;
+        .job-details {
+            border: 1px solid #e6e6e6;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            background: #fafafa;
         }
 
         .job-details table {
@@ -172,172 +63,319 @@
         }
 
         .job-details td {
-            padding: 5px 0;
+            padding: 4px 0;
             width: 50%;
+        }
+
+        .bold {
+            font-weight: 700;
+        }
+
+        /* --- Items --- */
+        .items-section h4 {
+            margin: 0 0 8px 0;
+            font-size: 11pt;
+            font-weight: 700;
+            color: #111;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+            page-break-inside: auto;
+        }
+
+        .items-table thead {
+            display: table-header-group;
         }
 
         .items-table th,
         .items-table td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
+            border: 1px solid #e6e6e6;
+            padding: 7px 8px;
             vertical-align: top;
         }
 
         .items-table thead th {
-            background-color: #f2f2f2;
-            font-size: 10pt;
-            font-weight: bold;
+            background: #f6f7f9;
+            font-size: 9.5pt;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .items-table tbody tr {
+            page-break-inside: avoid;
         }
 
         .items-table .col-counter {
-            width: 5%;
+            width: 7%;
+            text-align: center;
         }
 
         .items-table .col-qty {
+            width: 8%;
+            text-align: center;
+        }
+
+        .items-table .col-unit {
             width: 10%;
+            text-align: center;
         }
 
         .items-table .col-desc {
-            width: 85%;
+            width: 75%;
         }
 
-        .items-table .serials {
+        .serials {
             font-size: 9pt;
             color: #555;
+            margin-top: 2px;
             word-wrap: break-word;
         }
 
-        .bold {
-            font-weight: bold;
+        /* --- Notes --- */
+        .notes-section {
+            margin-top: 14px;
+            border: 1px solid #e6e6e6;
+            border-radius: 6px;
+            padding: 10px 12px;
+            min-height: 1.8cm;
+            page-break-inside: avoid;
         }
 
-        .notes-section {
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 8px;
-            min-height: 2cm;
+        .notes-section p {
+            margin: 6px 0 0 0;
+        }
+
+        /* --- Footer --- */
+        .footer-wrapper {
+            padding-top: 0px;
+        }
+
+        .signature-section-final {
+            border: 1px solid #e6e6e6;
+            border-radius: 6px;
+            padding: 8px 10px;
+            page-break-inside: avoid;
+        }
+
+        .sig-title {
+            margin: 6px 0 8px 0;
+            font-size: 10pt;
+            font-weight: 700;
+            text-align: left;
+            color: #111;
+        }
+
+        .data-table,
+        .customer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            font-weight: 400;
+            font-size: 8.5pt;
+            color: #666;
+            padding: 0 6px 4px 0;
+            text-align: left;
+        }
+
+        .data-table td {
+            font-size: 9.5pt;
+            font-weight: 700;
+            padding: 6px 6px 10px 0;
+        }
+
+        /* clean signature line */
+        .signature-line {
+            border-bottom: 1px solid #333;
+            height: 18px;
+        }
+
+        .customer-table td {
+            padding: 6px 10px 0 0;
+            vertical-align: bottom;
+        }
+
+        .customer-table .label {
+            font-size: 8.5pt;
+            color: #666;
+        }
+
+        .customer-table .line {
+            border-bottom: 1px solid #333;
+            height: 18px;
+            margin-top: 6px;
+        }
+
+        .contact-info {
+            text-align: center;
+            border-top: 1px solid #e6e6e6;
+            padding-top: 4px;
+            margin-top: 4px;
+            font-size: 9pt;
+            color: #666;
+        }
+
+        .page-counter {
+            text-align: right;
+            font-size: 9pt;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        .page-counter::after {
+            content: "Page " counter(page) " of " counter(pages);
         }
     </style>
 </head>
 
 <body>
 
-    <div class="header">
-        <!-- <div class="header-content">
-            <div class="header-left">
-                <img src="{{ logo_data_uri }}" alt="Napesco Logo">
-            </div>
-            <div class="header-right">
-                <p class="header-main-text">NATIONAL PETROLEUM SERVICES CO.(NAPESCO) S.A.E.</p>
-                <p class="header-main-text">الشركه الوطنيه للخدمات البتروليه (نابسكو) ش.م.م</p>
-                <p class="header-sub-text">FZ.License No : 41/2003 شركه مساهمه مصريه - منطقه حره</p>
-            </div>
-        </div> -->
-    </div>
+    <table class="master-layout">
 
-    <div class="main-content">
-        <div class="title">Delivery Ticket</div>
+        <!-- THEAD: This will repeat at the top of every page -->
+        <thead class="report-header">
+            <tr>
+                <td>
+                    <!-- This padding creates the 3cm blank space for your letterhead -->
+                    <div>
+                        <div class="title">Delivery Ticket</div>
+                        <div class="job-details">
+                            <table>
+                                <tr>
+                                    <td><span class="bold">Job Number:</span> {{ job.job_number }}</td>
+                                    <td><span class="bold">Rig:</span> {{ job.rig|default:"--" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="bold">Customer:</span> {{ job.customer }}</td>
+                                    <td><span class="bold">Well:</span> {{ job.well|default:"--" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="bold">Date:</span> {{ job.date|date:"Y-m-d" }}</td>
+                                    <td><span class="bold">Location:</span> {{ job.location|default:"--" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="bold">Ticket No:</span> {{ ticket.ticket_number }}</td>
+                                    <td><span class="bold">Transportation:</span> {{ job.trans|default:"--" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </thead>
 
-        <div class="job-details">
-            <!-- job details table -->
-            <table>
-                <tr>
-                    <td><span class="bold">Job Number:</span> {{ job.job_number }}</td>
-                    <td><span class="bold">Rig:</span> {{ job.rig|default:"--" }}</td>
-                </tr>
-                <tr>
-                    <td><span class="bold">Customer:</span> {{ job.customer }}</td>
-                    <td><span class="bold">Well:</span> {{ job.well|default:"--" }}</td>
-                </tr>
-                <tr>
-                    <td><span class="bold">Date:</span> {{ job.date|date:"Y-m-d" }}</td>
-                    <td><span class="bold">Location:</span> {{ job.location|default:"--" }}</td>
-                </tr>
-                <tr>
-                    <td><span class="bold">Ticket No:</span> {{ ticket.ticket_number }}</td>
-                    <td><span class="bold">Transportation:</span> {{ job.trans|default:"--" }}</td>
-                </tr>
-            </table>
-        </div>
+        <!-- TFOOT: This will repeat at the bottom of every page -->
+        <tfoot class="report-footer">
+            <tr>
+                <td>
+                    <div class="footer-wrapper">
+                        <!-- Your final Signature Section HTML goes here -->
+                        <div class="signature-section-final">
 
-        <div class="items-section">
-            <h4>ITEMS ON THIS TICKET</h4>
-            <table class="items-table">
-                <!-- items table -->
-                <thead>
-                    <tr>
-                        <th class="col-counter">Item</th>
-                        <th class="col-qty">Qty</th>
-                        <th class="col-desc">Description: S/No.</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for category_name, data in items_by_category.items %}
-                    <tr>
-                        <td class="col-counter">{{ forloop.counter }}</td>
-                        <td class="col-qty">{{ data.count }}</td>
-                        <td class="col-desc">
-                            <span class="bold">{{ category_name }}:</span>
-                            <div class="serials">{{ data.serials|join:", " }}</div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="3" style="text-align: center;">No items recorded for this ticket.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                            <!-- Napesco Representative Section -->
+                            <div class="sig-title">Napesco Representative</div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Delivered by:</th>
+                                        <th>Driver's Name:</th>
+                                        <th>ID/License No:</th>
+                                        <th>Truck No:</th>
+                                        <th>Signature:</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>{{ delivered_by|default:"&nbsp;" }}</td>
+                                        <td>{{ driver_name|default:"&nbsp;" }}</td>
+                                        <td>{{ id_license|default:"&nbsp;" }}</td>
+                                        <td>{{ truck_no|default:"&nbsp;" }}</td>
+                                        <td>
+                                            <div class="signature-line"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
-        <!-- The Notes and Footer are now inside the main content flow -->
-        <div class="notes-section">
-            <span class="bold">Notes:</span>
-            <p style="white-space: pre-wrap; margin-top: 5px;">{{ notes }}</p>
-        </div>
+                            <!-- Customer Use Only Section -->
+                            <div class="sig-title">For Customer Use Only</div>
+                            <table class="customer-table">
+                                <tr>
+                                    <td>
+                                        <span class="label">Material Received by:</span>
+                                        <div class="line"></div>
+                                    </td>
+                                    <td>
+                                        <span class="label">Date Received:</span>
+                                        <div class="line"></div>
+                                    </td>
+                                    <td>
+                                        <span class="label">Signature or stamp:</span>
+                                        <div class="line"></div>
+                                    </td>
+                                </tr>
+                            </table>
 
-        <div class="signature-section">
-            <div class="signature-grid">
-                <!-- signature grid content -->
-                <div>
-                    <div class="section-title">Napesco Representative</div>
-                    <div class="signature-box"><span class="label">Material Delivered by:</span>
-                        <div class="line"></div>
-                    </div>
-                    <div class="signature-box"><span class="label">Driver's name:</span>
-                        <div class="line"></div>
-                    </div>
-                    <div class="signature-box"><span class="label">ID/License No:</span>
-                        <div class="line"></div>
-                    </div>
-                    <div class="signature-box"><span class="label">Truck No:</span>
-                        <div class="line"></div>
-                    </div>
-                    <div class="signature-box"><span class="label">Signature:</span>
-                        <div class="line"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="section-title">For Customer Use Only</div>
-                    <div class="signature-box"><span class="label">Material Received by:</span>
-                        <div class="line"></div>
-                    </div>
-                    <div class="signature-box"><span class="label">Date Received:</span>
-                        <div class="line"></div>
-                    </div>
-                    <div class="signature-box"><span class="label">Signature or stamp:</span>
-                        <div class="line"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                        </div>
 
-        <div class="contact-info">
-            Tel:(202)7538754 Fax:(202)7537322
-        </div>
+                        <div class="contact-info">
+                            Tel:(202)7538754 Fax:(202)7537322
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </tfoot>
 
-    </div>
+        <!-- TBODY: This is the flowing content -->
+        <tbody>
+            <tr>
+                <td>
+                    <div class="items-section">
+                        <h4>ITEMS ON THIS TICKET</h4>
+                        <table class="items-table">
+                            <!-- items table -->
+                            <thead>
+                                <tr>
+                                    <th class="col-counter">Item</th>
+                                    <th class="col-qty">Qty</th>
+                                    <th class="col-unit">Unit</th>
+                                    <th class="col-desc">Description: S/No.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category_name, data in items_by_category.items %}
+                                <tr>
+                                    <td class="col-counter">{{ forloop.counter }}</td>
+                                    <td class="col-qty">{{ data.count }}</td>
+                                    <td class="col-unit">{{ data.unit }}</td>
+                                    <td class="col-desc">
+                                        <span class="bold">{{ category_name }}:</span>
+                                        <div class="serials">{{ data.serials|join:", " }}</div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" style="text-align: center;">No items recorded for this ticket.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- The Notes section is now inside the main flowing body -->
+                    <div class="notes-section">
+                        <span class="bold">Notes:</span>
+                        <p style="white-space: pre-wrap; margin-top: 5px;">{{ notes }}</p>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+
+    </table>
+
 </body>
 
 </html>

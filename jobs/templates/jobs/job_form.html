@@ -1,0 +1,122 @@
+<!-- templates/jobs/job_form.html -->
+{% extends "base.html" %}
+
+{% block title %}Create New Job{% endblock %}
+
+{% block content %}
+
+<style>
+    .errorlist {
+        list-style-type: none;
+        padding: 0;
+        margin: 0.25rem 0 0;
+        font-size: .875em;
+        color: #dc3545;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3">Create New Job</h1>
+    <a href="{% url 'job_list' %}" class="btn btn-secondary">
+        <i class="bi bi-x-lg me-1"></i> Cancel
+    </a>
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Primary Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.job_type.id_for_label }}" class="form-label">{{ form.job_type.label }}</label>
+                    {{ form.job_type }}
+                    {{ form.job_type.errors }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.customer.id_for_label }}" class="form-label">{{ form.customer.label }}</label>
+                    {{ form.customer }}
+                    {{ form.customer.errors }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.date.id_for_label }}" class="form-label">{{ form.date.label }}</label>
+                    {{ form.date }}
+                    {{ form.date.errors }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
+                    {{ form.status }}
+                    {{ form.status.errors }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Location & Equipment</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.rig.id_for_label }}" class="form-label">{{ form.rig.label }}</label>
+                    {{ form.rig }}
+                    {{ form.rig.errors }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.well.id_for_label }}" class="form-label">{{ form.well.label }}</label>
+                    {{ form.well }}
+                    {{ form.well.errors }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.location.id_for_label }}" class="form-label">{{ form.location.label }}</label>
+                    {{ form.location }}
+                    {{ form.location.errors }}
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.trans.id_for_label }}" class="form-label">{{ form.trans.label }} </label>
+                    {{ form.trans }}
+                    {{ form.trans.errors }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Notes</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                {{ form.description }}
+                {{ form.description.errors }}
+            </div>
+        </div>
+    </div>
+
+    <div class="text-end">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-check-circle-fill me-1"></i> Save Job
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize Tom Select for the customer dropdown
+    document.addEventListener("DOMContentLoaded", function () {
+        new TomSelect('#customer-select', {
+            create: false,
+            sortField: {
+                field: "text",
+                direction: "asc"
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -20,6 +20,8 @@ from django.conf import settings               # <-- ADD THIS
 from django.conf.urls.static import static 
 from django.urls import re_path
 from django.views.static import serve
+from django.contrib.auth import views as auth_views
+
 
 admin.site.site_header = "Napesco Portal Administration"
 admin.site.site_title = "Napesco Portal Admin"
@@ -27,6 +29,8 @@ admin.site.index_title = "Welcome to the Napesco Portal"
 admin.site.site_url = reverse_lazy('dashboard')
 
 urlpatterns = [
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
     path('inventory/', include('inventory.urls')), 
     path('jobs/', include('jobs.urls')), 

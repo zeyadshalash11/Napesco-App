@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 from inventory.models import InventoryItem , ProductCategory
 import uuid # We'll use this to generate unique ticket numbers
+from django.contrib.auth.models import User
 
 
 
@@ -75,6 +76,8 @@ class DeliveryTicket(models.Model):
     ticket_number = models.CharField(max_length=100, blank=True) # Removed unique=True for now
     ticket_date = models.DateTimeField(auto_now_add=True)
     items = models.ManyToManyField(InventoryItem, related_name='delivery_tickets')
+    
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_tickets_created')
 
     class Meta:
         # This ensures that a ticket number is unique FOR A GIVEN JOB
@@ -105,7 +108,8 @@ class ReceivingTicket(models.Model):
     ticket_number = models.CharField(max_length=100, blank=True)
     ticket_date = models.DateTimeField(auto_now_add=True)
     items = models.ManyToManyField(InventoryItem, related_name='receiving_tickets')
-
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_created')
+    
     class Meta:
         unique_together = ('job', 'ticket_number')
 

@@ -5,6 +5,8 @@ urlpatterns = [
     path('', views.job_list_view, name='job_list'),
     path('<int:job_id>/', views.job_detail_view, name='job_detail'),
     
+    path('create/', views.job_create_view, name='job_create'),
+
     path(
       'load-available-items/<int:job_id>/', 
       views.load_available_items_view, 
