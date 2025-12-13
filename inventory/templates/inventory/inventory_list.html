@@ -5,11 +5,19 @@
 {% block title %}Inventory Summary{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Inventory Summary by Location</h1>
-    <a href="{% url 'inventory_import' %}" class="btn btn-primary">Import Data</a>
-    <a href="{% url 'inventory_change_status' %}" class="btn btn-primary ms-2">Change Status</a>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Inventory Summary by Location</h1>
+
+    <div class="d-flex gap-2">
+        <a href="{% url 'inventory_import' %}" class="btn btn-success">
+            Import Data
+        </a>
+        <a href="{% url 'inventory_change_status' %}" class="btn btn-primary">
+            Change Status
+        </a>
+    </div>
 </div>
+
 
 <!-- NEW SEARCH BAR -->
 <form method="GET" class="mb-4">
