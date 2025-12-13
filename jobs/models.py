@@ -6,7 +6,20 @@ import uuid # We'll use this to generate unique ticket numbers
 from django.contrib.auth.models import User
 
 
+def can_close(self):
+    # Items delivered that MUST be returned
+    delivered_returnable_ids = set(
+        DeliveryTicketItem.objects.filter(ticket__job=self, is_returnable=True)
+        .values_list('item_id', flat=True)
+    )
 
+    # Items received back
+    received_ids = set(
+        self.receiving_tickets.values_list('items__id', flat=True)
+    )
+
+    # Job can close if every returnable delivered item has been received
+    return delivered_returnable_ids.issubset(received_ids)
 
 class Customer(models.Model):
     name = models.CharField(max_length=200, unique=True)
@@ -26,6 +39,7 @@ class Job(models.Model):
         ('1102', '1102 (Rental)'),
         ('1103', '1103 (Jars)'),
         ('1104', '1104 (Machine shop)'),
+        ('1105', '1105 (Thru Tubing)'),
     ]
     STATUS_CHOICES = [('open', 'Open'), ('closed', 'Closed')]
     
@@ -75,7 +89,7 @@ class DeliveryTicket(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='delivery_tickets')
     ticket_number = models.CharField(max_length=100, blank=True) # Removed unique=True for now
     ticket_date = models.DateTimeField(auto_now_add=True)
-    items = models.ManyToManyField(InventoryItem, related_name='delivery_tickets')
+    items = models.ManyToManyField(InventoryItem,through='DeliveryTicketItem',related_name='delivery_tickets')
     
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_tickets_created')
 
@@ -102,6 +116,17 @@ class DeliveryTicket(models.Model):
             self.ticket_number = f"DT-{new_num:03d}"
         
         super().save(*args, **kwargs)
+
+class DeliveryTicketItem(models.Model):
+    ticket = models.ForeignKey('DeliveryTicket', on_delete=models.CASCADE, related_name='lines')
+    item = models.ForeignKey(InventoryItem, on_delete=models.PROTECT)
+    is_returnable = models.BooleanField(default=True)  # False = SOLD / non-returnable
+
+    class Meta:
+        unique_together = ('ticket', 'item')
+
+    def __str__(self):
+        return f"{self.ticket.ticket_number} - {self.item.serial_number} ({'Return' if self.is_returnable else 'Sold'})"
 
 class ReceivingTicket(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='receiving_tickets')

@@ -91,7 +91,10 @@ def inventory_filtered_list_view(request):
         elif status_filter == 'attention':
             title = "Items Requiring Attention"
             queryset = queryset.filter(models.Q(status='re-cut') | models.Q(status='lih-dbr'))
-    
+        elif status_filter == 'sold':
+            title = "Sold Items"
+            queryset = queryset.filter(status='sold')
+
     if search_query:
         # Search by serial number or category name
         queryset = queryset.filter(
@@ -142,11 +145,12 @@ def inventory_import_view(request):
                 return redirect('inventory_import')
 
             # Call our reusable processing function
-            summary = process_inventory_file(df)
+            summary = process_inventory_file(df, strict=False)
 
             # Recalculate quantities if there were no critical errors
-            if "A critical error occurred" not in str(summary['errors']):
-                call_command('recalculate_quantities')
+            if (summary.get("created", 0) + summary.get("updated", 0)) > 0:
+              call_command('recalculate_quantities')
+
             
             # Store summary in session and redirect to results page
             request.session['import_summary'] = summary

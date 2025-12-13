@@ -4,7 +4,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from inventory.models import InventoryItem
 from django.contrib import messages
 from django.db import transaction
-from .models import Job, DeliveryTicket, ReceivingTicket , JobAttachment ,Contract
+from .models import Job, DeliveryTicket, DeliveryTicketItem,ReceivingTicket , JobAttachment ,Contract
 from operator import attrgetter
 from .forms import JobAttachmentForm
 from django.conf import settings
@@ -70,83 +70,150 @@ def job_detail_view(request, job_id):
     attachment_form = JobAttachmentForm()
 
     if request.method == 'POST':
+        # ---------- Attachments ----------
         if 'submit_attachment' in request.POST:
             form = JobAttachmentForm(request.POST, request.FILES)
             if form.is_valid():
                 files = request.FILES.getlist('file')
-                caption = form.cleaned_data['caption']
+                caption = form.cleaned_data.get('caption', '')
                 for f in files:
                     JobAttachment.objects.create(job=job, file=f, caption=caption)
                 messages.success(request, f"{len(files)} file(s) uploaded successfully.")
             else:
                 messages.error(request, "There was an error with your upload.")
             return redirect('job_detail', job_id=job.id)
-        else:
-            try:
-                with transaction.atomic():
-                    if 'submit_delivery' in request.POST:
-                        ticket = DeliveryTicket.objects.create(job=job, created_by=request.user)
-                        items_to_process = InventoryItem.objects.filter(id__in=request.POST.getlist('selected_items'), status='available')
-                        if len(items_to_process) != len(request.POST.getlist('selected_items')):
-                            raise Exception("Some selected items are no longer available. Please reload and try again.")
-                        for item in items_to_process:
-                            item.status = 'on_job'
-                            item.save()
-                            ticket.items.add(item)
-                        messages.success(request, f"Successfully created Delivery Ticket {ticket.ticket_number}.")
-                    elif 'submit_receiving' in request.POST:
-                        ticket = ReceivingTicket.objects.create(job=job, created_by=request.user)
-                        items_to_process_ids = request.POST.getlist('selected_items')
-                        if not items_to_process_ids:
-                            raise Exception("You must select at least one item to receive.")
-                        items_to_process = InventoryItem.objects.filter(id__in=items_to_process_ids)
-                        for item in items_to_process:
-                            status_key = f'new_status_{item.id}'
-                            new_status = request.POST.get(status_key, 'available')
-                            item.status = new_status
-                            item.save()
-                            ticket.items.add(item)
-                        messages.success(request, f"Successfully created Receiving Ticket {ticket.ticket_number}.")
-            except Exception as e:
-                messages.error(request, f"An error occurred: {e}")
-            return redirect('job_detail', job_id=job.id)
 
-    # --- CORRECTED GET LOGIC ---
-    delivery_tickets_qs = job.delivery_tickets.all().prefetch_related('items')
+        # ---------- Tickets (Delivery / Receiving) ----------
+        try:
+            with transaction.atomic():
+
+                # ===== DELIVERY =====
+                if 'submit_delivery' in request.POST:
+                    selected_ids = request.POST.getlist('selected_items')
+                    if not selected_ids:
+                        raise Exception("You must select at least one item to deliver.")
+
+                    # Lock rows to prevent race conditions (two users delivering same item)
+                    items_to_process = list(
+                        InventoryItem.objects.select_for_update()
+                        .filter(id__in=selected_ids, status='available')
+                    )
+
+                    if len(items_to_process) != len(selected_ids):
+                        raise Exception("Some selected items are no longer available. Please reload and try again.")
+
+                    ticket = DeliveryTicket.objects.create(job=job, created_by=request.user)
+
+                    delivery_lines = []
+                    items_to_update = []
+
+                    for item in items_to_process:
+                        # Expect a checkbox/hidden input in template:
+                        # name="delivery_sold_<id>" value "1" if sold else "0"
+                        is_sold = request.POST.get(f"delivery_sold_{item.id}") == "1"
+
+                        if is_sold:
+                            item.status = 'sold'
+                            is_returnable = False
+                        else:
+                            item.status = 'on_job'
+                            is_returnable = True
+
+                        items_to_update.append(item)
+                        delivery_lines.append(
+                            DeliveryTicketItem(
+                                ticket=ticket,
+                                item=item,
+                                is_returnable=is_returnable
+                            )
+                        )
+
+                    InventoryItem.objects.bulk_update(items_to_update, ['status'])
+                    DeliveryTicketItem.objects.bulk_create(delivery_lines)
+
+                    messages.success(request, f"Successfully created Delivery Ticket {ticket.ticket_number}.")
+
+                # ===== RECEIVING =====
+                elif 'submit_receiving' in request.POST:
+                    selected_ids = request.POST.getlist('selected_items')
+                    if not selected_ids:
+                        raise Exception("You must select at least one item to receive.")
+
+                    ticket = ReceivingTicket.objects.create(job=job, created_by=request.user)
+
+                    # Lock items while updating
+                    items_to_process = list(
+                        InventoryItem.objects.select_for_update()
+                        .filter(id__in=selected_ids)
+                    )
+
+                    items_to_update = []
+                    for item in items_to_process:
+                        status_key = f'new_status_{item.id}'
+                        new_status = request.POST.get(status_key, 'available')
+                        item.status = new_status
+                        items_to_update.append(item)
+
+                    InventoryItem.objects.bulk_update(items_to_update, ['status'])
+
+                    # ReceivingTicket still uses normal M2M, this is fine:
+                    ticket.items.add(*items_to_process)
+
+                    messages.success(request, f"Successfully created Receiving Ticket {ticket.ticket_number}.")
+
+        except Exception as e:
+            messages.error(request, f"An error occurred: {e}")
+
+        return redirect('job_detail', job_id=job.id)
+
+    # ---------------- GET LOGIC ----------------
+
+    # Delivery tickets now use lines__item (through model)
+    delivery_tickets_qs = job.delivery_tickets.all().prefetch_related('lines__item')
+
+    # Receiving still uses direct items M2M
     receiving_tickets_qs = job.receiving_tickets.all().prefetch_related('items')
-    
+
     ticket_history_list = []
+
     for ticket in delivery_tickets_qs:
         ticket_history_list.append({
-            'type': 'Delivery', 
-            'ticket_obj': ticket, 
-            'items_list': list(ticket.items.all()) # Use 'items_list'
+            'type': 'Delivery',
+            'ticket_obj': ticket,
+            # list of DeliveryTicketItem objects (each has .item and .is_returnable)
+            'items_list': list(ticket.lines.all())
         })
+
     for ticket in receiving_tickets_qs:
         ticket_history_list.append({
-            'type': 'Receiving', 
-            'ticket_obj': ticket, 
-            'items_list': list(ticket.items.all()) # Use 'items_list'
+            'type': 'Receiving',
+            'ticket_obj': ticket,
+            # list of InventoryItem objects
+            'items_list': list(ticket.items.all())
         })
 
     ticket_history = sorted(
         ticket_history_list, key=lambda t: t['ticket_obj'].ticket_date, reverse=True
     )
 
-    all_items_ever_delivered_for_job = InventoryItem.objects.filter(
-        delivery_tickets__job=job
-    ).distinct()
-    on_job_items = []
-    for item in all_items_ever_delivered_for_job:
-        if item.status == 'on_job':
-            last_delivery = item.delivery_tickets.filter(job=job).order_by('-ticket_date').first()
-            last_receiving = item.receiving_tickets.filter(job=job).order_by('-ticket_date').first()
-            if last_delivery:
-                if not last_receiving or last_delivery.ticket_date > last_receiving.ticket_date:
-                    on_job_items.append(item)
-    
+    # Compute "still out" items: returnable delivered items that are not received yet
+    returnable_delivered_ids = DeliveryTicketItem.objects.filter(
+        ticket__job=job,
+        is_returnable=True
+    ).values_list('item_id', flat=True)
+
+    received_ids = ReceivingTicket.objects.filter(
+        job=job
+    ).values_list('items__id', flat=True)
+
+    on_job_items = InventoryItem.objects.filter(
+        deliveryticketitem__ticket__job=job,
+        deliveryticketitem__is_returnable=True,
+        status='on_job'
+    ).select_related('category').distinct()
+
     attachments = job.attachments.all()
-    
+
     context = {
         'job': job,
         'on_job_items': on_job_items,

@@ -44,6 +44,8 @@
                         <span class="badge bg-danger">{{ item.get_status_display }}</span>
                         {% elif item.status == 'pending_inspection' %}
                         <span class="badge bg-primary">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'sold' %}
+                        <span class="badge bg-dark">{{ item.get_status_display }}</span>
                         {% endif %}
                     </td>
                 </tr>

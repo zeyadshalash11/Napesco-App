@@ -56,6 +56,9 @@
                         <select id="delivery-select" name="selected_items" multiple
                             placeholder="Type a serial number..."></select>
                     </div>
+
+                    <div id="delivery-sold-container" class="mt-4"></div>
+                    
                     <button type="submit" name="submit_delivery" class="btn btn-primary mt-3">Create Delivery
                         Ticket</button>
                 </form>
@@ -181,7 +184,7 @@
             <div>
                 {# This link will now appear for BOTH ticket types #}
                 <button type="button" class="btn btn-sm btn-outline-secondary export-pdf-btn" data-bs-toggle="modal"
-                    data-bs-target="#pdf-info-modal" data-ticket-type="{{ entry.type }}" <-- ADD THIS LINE
+                    data-bs-target="#pdf-info-modal" data-ticket-type="{{ entry.type }}" 
                     data-url="{% url 'ticket_pdf' ticket_type=entry.type|lower ticket_id=entry.ticket_obj.id %}">
                     Export PDF
                 </button>
@@ -191,12 +194,22 @@
 
         <p class="mb-1">
             <strong>Items on ticket:</strong>
+        
+            {% if entry.type == 'Delivery' %}
+            {% for line in entry.items_list %}
+            {{ line.item.serial_number }}{% if not forloop.last %}, {% endif %}
+            {% empty %}
+            <span class="text-muted">No items recorded for this ticket.</span>
+            {% endfor %}
+            {% else %}
             {% for item in entry.items_list %}
             {{ item.serial_number }}{% if not forloop.last %}, {% endif %}
             {% empty %}
             <span class="text-muted">No items recorded for this ticket.</span>
             {% endfor %}
+            {% endif %}
         </p>
+
     </div>
     {% empty %}
     <p class="text-muted">No tickets have been created for this job yet.</p>
@@ -266,6 +279,8 @@
 <script>
     // --- Initialize Tom Select for DELIVERY (with Submit-Time Check) ---
     const deliveryForm = document.getElementById('delivery-form');
+    const deliverySoldContainer = document.getElementById('delivery-sold-container');
+
     const deliveryTomSelect = new TomSelect('#delivery-select', {
         valueField: 'id',
         labelField: 'serial',
@@ -273,13 +288,48 @@
         plugins: ['remove_button'],
         create: false,
         render: {
-            option: (item, escape) => `<div><strong>${escape(item.serial)}</strong> (${escape(item.category)})<br><small class="text-muted">${escape(item.location)}</small></div>`,
+            option: (item, escape) =>
+                `<div><strong>${escape(item.serial)}</strong> (${escape(item.category)})<br><small class="text-muted">${escape(item.location)}</small></div>`,
             item: (item, escape) => `<div>${escape(item.serial)}</div>`
         },
         load: (query, callback) => {
             if (!query.length) return callback();
             const url = `{% url 'ajax_smart_search' job.id %}?type=available&q=${encodeURIComponent(query)}`;
             fetch(url).then(res => res.json()).then(callback).catch(() => callback());
+        },
+
+        // ✅ NEW: show Sold checkbox for each selected item
+        onItemAdd: function (value, $item) {
+            const itemName = $item.innerText.replace('×', '').trim();
+
+            // ✅ ADD THIS (avoid duplicates)
+            const existing = document.getElementById(`sold-for-${value}`);
+            if (existing) existing.remove();
+
+            const row = document.createElement('div');
+            row.id = `sold-for-${value}`;
+            row.classList.add('row', 'mb-2', 'align-items-center');
+
+            row.innerHTML = `
+        <div class="col-8">
+            <label class="form-label mb-0">${itemName}</label>
+        </div>
+        <div class="col-4 text-end">
+            <input type="hidden" name="delivery_sold_${value}" value="0">
+            <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="checkbox" name="delivery_sold_${value}" value="1" id="delivery_sold_${value}">
+                <label class="form-check-label" for="delivery_sold_${value}">Sold</label>
+            </div>
+        </div>
+    `;
+
+            deliverySoldContainer.appendChild(row);
+        },
+
+
+        onItemRemove: function (value) {
+            const row = document.getElementById(`sold-for-${value}`);
+            if (row) row.remove();
         }
     });
 

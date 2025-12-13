@@ -1,6 +1,7 @@
 
 from django.contrib import admin
 from .models import Customer, Contract, Job, DeliveryTicket, ReceivingTicket, JobAttachment
+from .models import DeliveryTicket, DeliveryTicketItem
 
 
 # This allows us to show the Contract inline with the Customer for easy editing
@@ -59,15 +60,18 @@ class JobAdmin(admin.ModelAdmin):
                     'classes': ('collapse',)
                 }),
             )
-    
+
+class DeliveryTicketItemInline(admin.TabularInline):
+    model = DeliveryTicketItem
+    extra = 0
+
 @admin.register(DeliveryTicket)
 class DeliveryTicketAdmin(admin.ModelAdmin):
     # Add 'ticket_number' to the display and make it read-only
     list_display = ('ticket_number', 'job', 'ticket_date')
-    filter_horizontal = ('items',)
     list_filter = ('ticket_date', 'job')
     date_hierarchy = 'ticket_date'
-    readonly_fields = ('ticket_number',) # The ticket number is auto-generated
+    readonly_fields = ('ticket_number',) # The ticket number is auto-generated     inlines = [DeliveryTicketItemInline]
 
 @admin.register(ReceivingTicket)
 class ReceivingTicketAdmin(admin.ModelAdmin):

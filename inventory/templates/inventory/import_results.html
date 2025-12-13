@@ -7,23 +7,34 @@
 
 {% if summary %}
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card text-white bg-success mb-3">
             <div class="card-header">Items Created</div>
             <div class="card-body">
-                <h5 class="card-title display-4">{{ summary.created }}</h5>
+                <h5 class="card-title display-4">{{ summary.created|default:0 }}</h5>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+
+    <div class="col-md-3">
         <div class="card text-dark bg-warning mb-3">
             <div class="card-header">Items Updated</div>
             <div class="card-body">
-                <h5 class="card-title display-4">{{ summary.updated }}</h5>
+                <h5 class="card-title display-4">{{ summary.updated|default:0 }}</h5>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+
+    <div class="col-md-3">
+        <div class="card text-white bg-secondary mb-3">
+            <div class="card-header">Rows Skipped</div>
+            <div class="card-body">
+                <h5 class="card-title display-4">{{ summary.skipped|default:0 }}</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
         <div class="card text-white bg-danger mb-3">
             <div class="card-header">Errors Found</div>
             <div class="card-body">
@@ -43,6 +54,7 @@
     </ul>
 </div>
 {% endif %}
+
 
 {% else %}
 <div class="alert alert-warning">

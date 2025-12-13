@@ -12,11 +12,13 @@ def dashboard_view(request):
     on_job_count = InventoryItem.objects.filter(status='on_job').count()
     re_cut_count = InventoryItem.objects.filter(status='re-cut').count()
     lih_dbr_count = InventoryItem.objects.filter(status='lih-dbr').count()
-    
+    sold_count = InventoryItem.objects.filter(status='sold').count()
+
     # --- NEW COUNT ---
     pending_inspection_count = InventoryItem.objects.filter(status='pending_inspection').count()
 
-    total_items = available_count + on_job_count + re_cut_count + lih_dbr_count + pending_inspection_count
+    total_items = available_count + on_job_count + re_cut_count + lih_dbr_count + pending_inspection_count + sold_count
+
     attention_count = re_cut_count + lih_dbr_count
 
     active_jobs = Job.objects.filter(status='open').order_by('-date')
@@ -28,5 +30,7 @@ def dashboard_view(request):
         'attention_count': attention_count,
         'pending_inspection_count': pending_inspection_count, # <-- PASS TO TEMPLATE
         'active_jobs': active_jobs,
+        'sold_count': sold_count,
+
     }
     return render(request, 'core/dashboard.html', context)

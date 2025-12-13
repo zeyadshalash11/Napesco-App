@@ -25,9 +25,10 @@ class InventoryItem(models.Model):
         ('re-cut', 'Re-cut'),
         ('lih-dbr', 'LIH-DBR'),
         ('pending_inspection', 'Pending Inspection'),
+        ('sold', 'Sold'),
     ]
 
-    serial_number = models.CharField(max_length=200, unique=True)
+    serial_number = models.CharField(max_length=200, unique=True,  db_index=True)
     category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name="items")
     location = models.CharField(max_length=50, choices=LOCATION_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')    
