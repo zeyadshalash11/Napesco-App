@@ -8,6 +8,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Inventory Summary by Location</h1>
     <a href="{% url 'inventory_import' %}" class="btn btn-primary">Import Data</a>
+    <a href="{% url 'inventory_change_status' %}" class="btn btn-primary ms-2">Change Status</a>
 </div>
 
 <!-- NEW SEARCH BAR -->
@@ -19,7 +20,7 @@
     </div>
 </form>
 <!-- END SEARCH BAR -->
- 
+
 <!-- Maadi Yard Table -->
 <h3 class="mt-5">Maadi Yard</h3>
 <table class="table table-hover">

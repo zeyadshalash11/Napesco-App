@@ -9,6 +9,9 @@ from django.contrib.staticfiles import finders
 from .utils import process_inventory_file 
 import pandas as pd
 from django.contrib.auth.decorators import login_required 
+from django.db import transaction
+from django.http import JsonResponse
+from django.db.models import Q
 
 @login_required
 def inventory_list_view(request):
@@ -161,3 +164,53 @@ def inventory_import_view(request):
             return redirect('inventory_import')
 
     return render(request, 'inventory/import_form.html')
+
+@login_required
+def inventory_change_status_view(request):
+    if request.method == "POST":
+        selected_ids = request.POST.getlist("selected_items")
+        new_status = request.POST.get("new_status", "").strip()
+
+        if not selected_ids:
+            messages.error(request, "Please select at least one item.")
+            return redirect("inventory_change_status")
+
+        valid_statuses = {k for k, _ in InventoryItem.STATUS_CHOICES}
+        if new_status not in valid_statuses:
+            messages.error(request, "Invalid status selected.")
+            return redirect("inventory_change_status")
+
+        with transaction.atomic():
+            items = list(InventoryItem.objects.select_for_update().filter(id__in=selected_ids))
+            InventoryItem.objects.filter(id__in=[i.id for i in items]).update(status=new_status)
+
+        serials = list(InventoryItem.objects.filter(id__in=selected_ids).values_list('serial_number', flat=True))
+
+        messages.success(request,f"Status updated to '{new_status}' for: {', '.join(serials)}")
+        return redirect("inventory_change_status")
+
+    return render(request, "inventory/change_status.html", {
+        "status_choices": InventoryItem.STATUS_CHOICES
+    })
+
+@login_required
+def ajax_inventory_search(request):
+    q = (request.GET.get("q") or "").strip()
+    if not q:
+        return JsonResponse([], safe=False)
+
+    qs = InventoryItem.objects.select_related("category").filter(
+        Q(serial_number__icontains=q) | Q(category__name__icontains=q)
+    )[:30]
+
+    data = []
+    for item in qs:
+        data.append({
+            "id": item.id,
+            "serial": item.serial_number,
+            "category": item.category.name,
+            "location": item.get_location_display(),
+            "status": item.get_status_display(),
+        })
+
+    return JsonResponse(data, safe=False)

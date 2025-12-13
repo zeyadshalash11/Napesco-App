@@ -9,4 +9,7 @@ urlpatterns = [
     path('download-template/', views.download_template_view, name='download_template'),
     path('import/', views.inventory_import_view, name='inventory_import'),
     path('import/results/', views.import_results_view, name='import_results'),
-]
+    path('change-status/', views.inventory_change_status_view, name='inventory_change_status'),
+    path('ajax/search/', views.ajax_inventory_search, name='ajax_inventory_search'),
+
+]   

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Change Item Status{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Change Item Status</h1>
+        <div class="text-muted">Search items by serial or category, then set one status for all selected items.</div>
+    </div>
+    <a href="{% url 'inventory_list' %}" class="btn btn-primary">
+        Back to Inventory
+    </a>
+
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST" id="change-status-form">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="items-select" class="form-label">Search & select items</label>
+                        <select id="items-select" name="selected_items" multiple
+                            placeholder="Type a serial number..."></select>
+                        <div class="form-text">Tip: you can select multiple items.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_status" class="form-label">New status</label>
+                        <select class="form-select" name="new_status" id="new_status" required>
+                            <option value="" selected disabled>Choose status...</option>
+                            {% for key,label in status_choices %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            Update Status
+                        </button>
+                        <button type="button" id="clear-selection" class="btn btn-outline-secondary">
+                            Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mt-4 mt-lg-0">
+        <div class="card border-0 bg-light">
+            <div class="card-body">
+                <h6 class="mb-2">What this does</h6>
+                <ul class="mb-0">
+                    <li>Select one or more items</li>
+                    <li>Pick a new status</li>
+                    <li>All selected items get updated</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const selectEl = document.getElementById("items-select");
+        const clearBtn = document.getElementById("clear-selection");
+
+        const ts = new TomSelect(selectEl, {
+            valueField: "id",
+            labelField: "serial",
+            searchField: ["serial", "category"],
+            plugins: ["remove_button"],
+            create: false,
+            closeAfterSelect: false,
+            render: {
+                option: (item, escape) => `
+          <div>
+            <div><strong>${escape(item.serial)}</strong> <span class="text-muted">(${escape(item.category)})</span></div>
+            <div class="text-muted small">${escape(item.location)} • ${escape(item.status)}</div>
+          </div>
+        `,
+                item: (item, escape) => `<div>${escape(item.serial)}</div>`
+            },
+            load: (query, callback) => {
+                if (!query || query.length < 1) return callback();
+                const url = `{% url 'ajax_inventory_search' %}?q=${encodeURIComponent(query)}`;
+                fetch(url)
+                    .then(r => r.json())
+                    .then(data => callback(data))
+                    .catch(() => callback());
+            }
+        });
+
+        clearBtn.addEventListener("click", () => {
+            ts.clear(true);
+        });
+    });
+</script>
+{% endblock %}
