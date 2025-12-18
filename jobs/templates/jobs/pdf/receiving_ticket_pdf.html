@@ -237,7 +237,7 @@
                                 <td><span class="bold">Well:</span> {{ job.well|default:"--" }}</td>
                             </tr>
                             <tr>
-                                <td><span class="bold">Date:</span> {{ job.date|date:"Y-m-d" }}</td>
+                                <td><span class="bold">Date:</span> {{ ticket.ticket_date|date:"Y-m-d" }}</td>
                                 <td><span class="bold">Location:</span> {{ job.location|default:"--" }}</td>
                             </tr>
                             <tr>
@@ -261,8 +261,20 @@
 
                             <table class="info-table">
                                 <tr>
-                                    <td class="info-label">Received by:</td>
-                                    <td class="info-data">{{ received_by|default:"&nbsp;" }}</td>
+                                    <td class="info-label">
+                                        {% if ticket.modified_by %}
+                                        Modified by:
+                                        {% else %}
+                                        Received by:
+                                        {% endif %}
+                                    </td>
+                                    <td class="info-data">
+                                        {% if ticket.modified_by %}
+                                        {{ ticket.modified_by.get_full_name|default:ticket.modified_by.username }}
+                                        {% elif ticket.created_by %}
+                                        {{ ticket.created_by.get_full_name|default:ticket.created_by.username }}
+                                        {% endif %}
+                                    </td>
 
                                     <td class="info-label">Driver's Name:</td>
                                     <td class="info-data">{{ driver_name|default:"&nbsp;" }}</td>

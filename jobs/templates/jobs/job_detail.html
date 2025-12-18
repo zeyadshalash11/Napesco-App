@@ -41,8 +41,12 @@
     <!-- DELIVERY TICKET BUILDER -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">
-                <h5>Create Delivery Ticket</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Create Delivery Ticket</span>
+                <a href="{% url 'delivery_ticket_quick_create' job.id %}" class="btn btn-sm btn-outline-primary"
+                    title="Quick Add by S/N">
+                    <i class="bi bi-lightning-fill"></i>
+                </a>
             </div>
             <div class="card-body">
                 <form method="POST" id="delivery-form">
@@ -69,7 +73,8 @@
     <!-- RECEIVING TICKET BUILDER -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
-            <div class="card-header">
+            
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5>Create Receiving Ticket</h5>
             </div>
             <div class="card-body">
@@ -181,7 +186,16 @@
                 {% endif %}
                 {{ entry.ticket_obj.ticket_number }}
             </h5>
+
             <div>
+
+                <!-- ===== NEW EDIT ICON ===== -->
+                <a href="{% url 'ticket_edit' ticket_type=entry.type|lower ticket_id=entry.ticket_obj.id %}"
+                    class="btn btn-sm btn-outline-primary" title="Edit Ticket">
+                    <i class="bi bi-pencil-square"></i>
+                </a>
+                <!-- ===== END OF ICON ===== -->
+                 
                 {# This link will now appear for BOTH ticket types #}
                 <button type="button" class="btn btn-sm btn-outline-secondary export-pdf-btn" data-bs-toggle="modal"
                     data-bs-target="#pdf-info-modal" data-ticket-type="{{ entry.type }}" 
@@ -274,6 +288,7 @@
 </div>
 
 {% endblock %}
+
 
 {% block extra_js %}
 <script>

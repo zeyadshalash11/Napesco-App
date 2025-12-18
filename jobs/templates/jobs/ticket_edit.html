@@ -1,0 +1,63 @@
+<!-- jobs/templates/jobs/ticket_edit.html -->
+{% extends "base.html" %}
+
+{% block title %}Edit {{ ticket_type|title }} Ticket{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">
+    Edit {{ ticket_type|title }} Ticket <span class="text-muted">({{ ticket.ticket_number }})</span>
+</h1>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+
+            <!-- DATE EDITING (Only for Delivery Tickets) -->
+            {% if ticket_type == 'delivery' %}
+            <div class="mb-4">
+                <label for="ticket_date" class="form-label">Ticket Date</label>
+                <input type="date" class="form-control" id="ticket_date" name="ticket_date"
+                    value="{{ ticket.ticket_date|date:'Y-m-d' }}" required>
+                <div class="form-text">You can only edit the date for Delivery tickets.</div>
+            </div>
+            {% endif %}
+
+            <!-- ITEM EDITING -->
+            <div class="mb-4">
+                <label for="items-select" class="form-label">
+                    Items on Ticket
+                </label>
+                <select id="items-select" name="items" multiple required>
+                    {% for item in potential_items %}
+                    <option value="{{ item.id }}" {% if item.id in current_item_ids %}selected{% endif %}>
+                        {{ item.category.name }} - S/N: {{ item.serial_number }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Select one or more items. Items already on the ticket are pre-selected.</div>
+            </div>
+
+            <hr>
+
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'job_detail' job.id %}" class="btn btn-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize Tom Select for a better multi-select UI
+    document.addEventListener("DOMContentLoaded", function () {
+        new TomSelect('#items-select', {
+            plugins: ['remove_button'],
+            create: false,
+            placeholder: 'Search and select items...'
+        });
+    });
+</script>
+{% endblock %}

@@ -2,11 +2,13 @@
 
 from django import forms
 from .models import Job
-
+from django.core.validators import FileExtensionValidator
 
 class JobAttachmentForm(forms.Form):
-    # This field is now very simple. The 'multiple' attribute will be in the HTML.
-    file = forms.ImageField(required=True)
+    file = forms.FileField(
+        required=True,
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'pdf', 'txt', 'xlsx', 'xls'])]
+    )
     
     caption = forms.CharField(max_length=200, required=False)
 

@@ -90,8 +90,9 @@ class DeliveryTicket(models.Model):
     ticket_number = models.CharField(max_length=100, blank=True) # Removed unique=True for now
     ticket_date = models.DateTimeField(auto_now_add=True)
     items = models.ManyToManyField(InventoryItem,through='DeliveryTicketItem',related_name='delivery_tickets')
-    
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_tickets_created')
+    updated_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_tickets_modified')
 
     class Meta:
         # This ensures that a ticket number is unique FOR A GIVEN JOB
@@ -134,7 +135,9 @@ class ReceivingTicket(models.Model):
     ticket_date = models.DateTimeField(auto_now_add=True)
     items = models.ManyToManyField(InventoryItem, related_name='receiving_tickets')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_created')
-    
+    updated_at = models.DateTimeField(auto_now=True)
+    modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_modified')
+
     class Meta:
         unique_together = ('job', 'ticket_number')
 
@@ -161,7 +164,7 @@ class ReceivingTicket(models.Model):
 
 class JobAttachment(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='attachments')
-    file = models.ImageField(upload_to='job_attachments/')
+    file = models.FileField(upload_to='job_attachments/')
     caption = models.CharField(max_length=200, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

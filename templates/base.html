@@ -55,6 +55,15 @@
                             <span class="link-text">Welcome, {{ user.username }}</span>
                         </div>
                     </li>
+
+                    <!-- ===== NEW ADMIN BUTTON STARTS HERE ===== -->
+                    <li class="nav-item" style="font-size: 0.85rem;">
+                        <a class="nav-link" href="/admin/">
+                            <i class="bi bi-gear-fill me-2"></i>
+                            <span class="link-text">Admin</span>
+                        </a>
+                    </li>
+
                     <li class="nav-item" style="font-size: 0.85rem;"> <!-- Smaller font size for this item -->
                         <!-- This is now a form styled to look like a link -->
                         <form method="post" action="{% url 'logout' %}" class="d-inline">
@@ -66,6 +75,7 @@
                             </button>
                         </form>
                     </li>
+
                 </ul>
             </div>
             {% endif %}

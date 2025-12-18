@@ -1,4 +1,6 @@
+import base64
 from django.shortcuts import render
+from django.urls import reverse
 from .models import Job
 from django.shortcuts import render, get_object_or_404, redirect
 from inventory.models import InventoryItem
@@ -11,7 +13,9 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from weasyprint import HTML
-import base64
+import os
+from io import BytesIO
+import zipfile
 from django.contrib.staticfiles import finders
 from django.http import JsonResponse
 from django.db.models import Q
@@ -63,6 +67,48 @@ def load_on_job_items_view(request, job_id):
                     items_to_receive.append(item)
 
     return render(request, 'jobs/partials/_receiving_item_list.html', {'items': items_to_receive})
+
+
+
+@login_required
+def job_export_view(request, job_id):
+    job = get_object_or_404(Job, id=job_id)
+
+    # Get all tickets for the job
+    all_tickets = list(job.delivery_tickets.all()) + list(job.receiving_tickets.all())
+    base_url = request.build_absolute_uri('/') # Base URL for WeasyPrint
+
+    in_memory_zip = BytesIO()
+    with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+        
+        # Generate and add a PDF for each ticket
+        if not all_tickets:
+            zf.writestr("no_tickets_found.txt", "This job has no delivery or receiving tickets.")
+        else:
+            for ticket in all_tickets:
+                ticket_type_str = 'delivery' if isinstance(ticket, DeliveryTicket) else 'receiving'
+                
+                # Call the helper to get the PDF content.
+                # We pass 'None' for extra_context because there's no driver info for a bulk export.
+                pdf_content, ticket_number = generate_ticket_pdf_content(
+                    ticket_type_str, ticket.id, base_url, extra_context=None
+                )
+                
+                if pdf_content:
+                    pdf_filename = f"Ticket_{ticket_number}_{ticket_type_str.capitalize()}.pdf"
+                    zf.writestr(pdf_filename, pdf_content)
+
+        # Add all job attachments
+        for attachment in job.attachments.all():
+            file_name = os.path.basename(attachment.file.name)
+            with attachment.file.open('rb') as f:
+                zf.writestr(file_name, f.read())
+
+    in_memory_zip.seek(0)
+    response = HttpResponse(in_memory_zip, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="job_{job.job_number}_export.zip"'
+    
+    return response
 
 @login_required
 def job_detail_view(request, job_id):
@@ -214,82 +260,107 @@ def job_detail_view(request, job_id):
 
     attachments = job.attachments.all()
 
+    preselect_receive_ids = request.GET.getlist('preselect_receive')
+    
+    on_job_items_for_js = [{
+        'id': item.id,
+        'serial': item.serial_number,
+        'category': item.category.name,
+        'location': item.get_location_display()
+    } for item in on_job_items]
+
     context = {
         'job': job,
         'on_job_items': on_job_items,
         'ticket_history': ticket_history,
         'attachment_form': attachment_form,
         'attachments': attachments,
+        'preselect_receive_ids': preselect_receive_ids,
+        'on_job_items_json': on_job_items_for_js,
     }
     return render(request, 'jobs/job_detail.html', context)
 
-@login_required
-def ticket_pdf_view(request, ticket_type, ticket_id):
-    ticket = None
-    template_name = '' # Variable to hold the template path
-
+def generate_ticket_pdf_content(ticket_type, ticket_id, base_url, extra_context=None):
+    """
+    Generates PDF content for a ticket using the app's specific logic.
+    - base_url is required for WeasyPrint to find static files like CSS/images.
+    - extra_context is a dict for optional data like driver_name, truck_no, etc.
+    """
+    # 1. Fetch the ticket object
     if ticket_type == 'delivery':
         ticket = get_object_or_404(DeliveryTicket, id=ticket_id)
-        template_name = 'jobs/pdf/delivery_ticket_pdf.html' # Use the existing delivery template
+        template_name = 'jobs/pdf/delivery_ticket_pdf.html'
+        # Delivery tickets get items from the 'lines' related manager
+        items_on_ticket = [line.item for line in ticket.lines.select_related('item__category').all()]
     elif ticket_type == 'receiving':
         ticket = get_object_or_404(ReceivingTicket, id=ticket_id)
-        template_name = 'jobs/pdf/receiving_ticket_pdf.html' # Use the NEW receiving template
-    
-    if not ticket:
-        return HttpResponse("Ticket not found or type is invalid", status=404)
+        template_name = 'jobs/pdf/receiving_ticket_pdf.html'
+        # Receiving tickets get items directly from the 'items' manager
+        items_on_ticket = list(ticket.items.select_related('category').all())
+    else:
+        # This case should not be reached with valid URLs
+        return None, None
 
     job = ticket.job
-    items_on_ticket = list(ticket.items.select_related('category').all())
 
-
-    # Group items by category and count them
+    # 2. Group items by category (your exact logic)
     items_by_category = {}
     for item in items_on_ticket:
         category_name = item.category.name
         if category_name not in items_by_category:
-            # Initialize with a count and a list for serials
             items_by_category[category_name] = {'count': 0, 'serials': [], 'unit': item.category.unit}
         
-        # Increment the count and add the serial number
         items_by_category[category_name]['count'] += 1
         items_by_category[category_name]['serials'].append(item.serial_number)
-    # This logic for embedding the logo is the same for both
 
-    # 1. Get the logged-in user's full name. Fallback to username if not set.
-    driver_name = request.GET.get('driver_name', '')
-    truck_no = request.GET.get('truck_no', '')
-    notes_text = request.GET.get('notes', '')
-    # For delivery tickets, we also get the id_license
-    id_license = request.GET.get('id_license', '') 
-
-    # Initialize context variables
+    # 3. Build the context dictionary
     context = {
         'ticket': ticket,
         'job': job,
         'items_by_category': items_by_category,
-        'driver_name': driver_name,
-        'truck_no': truck_no,
-        'notes': notes_text,
-        'id_license': id_license, # Pass it for delivery tickets
     }
 
-    # Now, get the user's name from the correct source
-    if ticket.created_by:
-        creator_name = ticket.created_by.get_full_name() or ticket.created_by.username
-    else:
-        creator_name = "N/A" # Fallback if ticket has no creator
-
-    # Add the correct variable to the context based on ticket type
+    # Add optional context if provided (for driver name, etc.)
+    if extra_context:
+        context.update(extra_context)
+    
+    # Add the creator's name to the context
+    creator_name = ticket.created_by.get_full_name() or ticket.created_by.username if ticket.created_by else "N/A"
     if ticket_type == 'delivery':
         context['delivered_by'] = creator_name
     elif ticket_type == 'receiving':
         context['received_by'] = creator_name
 
+    # 4. Render HTML and generate PDF
     html_string = render_to_string(template_name, context)
-    pdf_file = HTML(string=html_string, base_url=request.build_absolute_uri()).write_pdf()
+    pdf_file = HTML(string=html_string, base_url=base_url).write_pdf()
 
-    response = HttpResponse(pdf_file, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{ticket.ticket_number}.pdf"'
+    # 5. Return the raw PDF content and the ticket number
+    return pdf_file, ticket.ticket_number
+
+@login_required
+def ticket_pdf_view(request, ticket_type, ticket_id):
+    # Gather the extra context from the URL GET parameters
+    extra_context = {
+        'driver_name': request.GET.get('driver_name', ''),
+        'truck_no': request.GET.get('truck_no', ''),
+        'notes': request.GET.get('notes', ''),
+        'id_license': request.GET.get('id_license', ''),
+    }
+
+    base_url = request.build_absolute_uri()
+    
+    # Call the helper to do all the hard work
+    pdf_content, ticket_number = generate_ticket_pdf_content(
+        ticket_type, ticket_id, base_url, extra_context
+    )
+
+    if not pdf_content:
+        return HttpResponse("Ticket not found or type is invalid", status=404)
+
+    # Create and return the response
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{ticket_number}.pdf"'
     
     return response
 
@@ -339,10 +410,18 @@ def reopen_job_view(request, job_id):
 
 @login_required
 def smart_search_items_view(request, job_id):
-    query = request.GET.get('q', '').strip()
-    # 'search_type' will be 'available' or 'on_job'
     search_type = request.GET.get('type', 'available')
+    query = request.GET.get('q', '').strip()
 
+    id_list_str = request.GET.get('ids', '')
+    if id_list_str:
+        try:
+            # Convert comma-separated string of IDs into a list of integers
+            id_list = [int(id_str) for id_str in id_list_str.split(',')]
+            queryset = InventoryItem.objects.filter(id__in=id_list)
+        except ValueError:
+            return JsonResponse([], safe=False)
+        
     if not query:
         return JsonResponse([], safe=False)
 
@@ -417,3 +496,208 @@ def job_create_view(request):
         'form': form
     }
     return render(request, 'jobs/job_form.html', context)    
+
+@login_required
+def ticket_edit_view(request, ticket_type, ticket_id):
+    # 1. Determine the model and get the ticket instance
+    if ticket_type == 'delivery':
+        model = DeliveryTicket
+    elif ticket_type == 'receiving':
+        model = ReceivingTicket
+    else:
+        messages.error(request, "Invalid ticket type.")
+        return redirect('dashboard') # Or wherever is appropriate
+
+    ticket = get_object_or_404(model, id=ticket_id)
+    job = ticket.job
+
+    # 2. Get the items currently on the ticket
+    if ticket_type == 'delivery':
+        # For delivery, items are accessed via the 'lines' through model
+        current_item_ids = ticket.lines.values_list('item_id', flat=True)
+    else:
+        # For receiving, it's a direct many-to-many
+        current_item_ids = ticket.items.values_list('id', flat=True)
+
+    # 3. Handle the form submission (POST request)
+    if request.method == 'POST':
+        
+        new_item_ids_str = request.POST.getlist('items')
+        
+        # Convert the new list of IDs to integers for comparison.
+        new_item_ids = {int(id_str) for id_str in new_item_ids_str}
+
+        # The 'current_item_ids' from before the POST is the original list.
+        original_item_ids = set(current_item_ids)
+    
+        removed_item_ids = original_item_ids - new_item_ids
+
+        if removed_item_ids:
+            if ticket_type == 'delivery':
+                # If removed from a DELIVERY ticket, the item becomes AVAILABLE again.
+                InventoryItem.objects.filter(id__in=removed_item_ids).update(status='available')
+            elif ticket_type == 'receiving':
+                # If removed from a RECEIVING ticket, the item is still ON THE JOB.
+                InventoryItem.objects.filter(id__in=removed_item_ids).update(status='on_job')
+
+        # Update the items
+        if ticket_type == 'delivery':
+            # For 'through' models, we must manage the relationship manually
+            # This is a simple but effective way: clear existing and add new
+            ticket.lines.all().delete() # Remove old item lines
+            new_lines = []
+            for item_id in new_item_ids:
+                item = InventoryItem.objects.get(id=item_id)
+                # We assume any edited item is still returnable; this could be made more complex if needed.
+                new_lines.append(DeliveryTicketItem(ticket=ticket, item=item, is_returnable=True))
+            DeliveryTicketItem.objects.bulk_create(new_lines)
+        else: # Receiving
+            # Direct M2M is easy; .set() handles adding and removing
+            ticket.items.set(new_item_ids)
+
+        # For Delivery tickets, update the date (as per your business rule)
+        if ticket_type == 'delivery':
+            new_date = request.POST.get('ticket_date')
+            if new_date:
+                # We update the original 'ticket_date', not 'updated_at'
+                ticket.ticket_date = new_date
+
+        # Update the 'modified_by' field and save
+        ticket.modified_by = request.user
+        ticket.save()
+
+        messages.success(request, f"Ticket {ticket.ticket_number} updated successfully.")
+        return redirect('job_detail', job_id=job.id)
+
+    # 4. Prepare context for rendering the form (GET request)
+    # Find all items that could potentially be on this ticket:
+    # EITHER items currently available OR items already on this specific ticket.
+    potential_items = InventoryItem.objects.filter(
+        Q(status='available') | Q(id__in=current_item_ids)
+    ).distinct().select_related('category')
+
+    context = {
+        'ticket': ticket,
+        'ticket_type': ticket_type,
+        'job': job,
+        'potential_items': potential_items,
+        'current_item_ids': list(current_item_ids),
+    }
+    return render(request, 'jobs/ticket_edit.html', context)
+
+@login_required
+def delivery_ticket_quick_create_view(request, job_id):
+    job = get_object_or_404(Job, id=job_id)
+
+    if request.method == 'POST':
+        submitted_text = request.POST.get('serial_numbers_text', '')
+        
+        # 1. Clean the input: split by line, strip whitespace, remove empty lines
+        submitted_serials = {s.strip() for s in submitted_text.splitlines() if s.strip()}
+
+        if not submitted_serials:
+            messages.error(request, "You must enter at least one serial number.")
+            return redirect('delivery_ticket_quick_create', job_id=job.id)
+
+        # 2. Find all matching inventory items in one query
+        found_items = InventoryItem.objects.filter(serial_number__in=submitted_serials)
+
+        # 3. Validate the items
+        found_serials = {item.serial_number for item in found_items}
+        not_found_serials = submitted_serials - found_serials
+        
+        unavailable_items = [
+            item for item in found_items if item.status != 'available'
+        ]
+
+        # If there are any errors, build a message and stop
+        if not_found_serials or unavailable_items:
+            error_message = "Could not create ticket due to the following errors:"
+            if not_found_serials:
+                error_message += f"<br>- Not Found: {', '.join(not_found_serials)}"
+            if unavailable_items:
+                unavailable_list = [f"{item.serial_number} (status: {item.get_status_display()})" for item in unavailable_items]
+                error_message += f"<br>- Not Available: {', '.join(unavailable_list)}"
+            
+            messages.error(request, error_message)
+            # Re-render the page with the user's original input to let them fix it
+            context = {'job': job, 'submitted_serials': submitted_text}
+            return render(request, 'jobs/delivery_ticket_quick_create.html', context)
+        
+        # 4. If all validations pass, create the ticket
+        try:
+            with transaction.atomic():
+                # Create the delivery ticket
+                ticket = DeliveryTicket.objects.create(job=job, created_by=request.user)
+
+                # Create ticket lines and prepare items for status update
+                delivery_lines = []
+                for item in found_items:
+                    delivery_lines.append(
+                        DeliveryTicketItem(ticket=ticket, item=item, is_returnable=True)
+                    )
+                    item.status = 'on_job' # Set status for bulk update
+
+                # Perform bulk operations for efficiency
+                DeliveryTicketItem.objects.bulk_create(delivery_lines)
+                InventoryItem.objects.bulk_update(found_items, ['status'])
+
+                messages.success(request, f"Successfully created Delivery Ticket {ticket.ticket_number} with {len(found_items)} items.")
+                return redirect('job_detail', job_id=job.id)
+
+        except Exception as e:
+            messages.error(request, f"A database error occurred: {e}")
+            context = {'job': job, 'submitted_serials': submitted_text}
+            return render(request, 'jobs/delivery_ticket_quick_create.html', context)
+
+    # For a GET request, just show the blank form
+    context = {'job': job}
+    return render(request, 'jobs/delivery_ticket_quick_create.html', context)
+
+
+@login_required
+def receiving_ticket_quick_create_view(request, job_id):
+    job = get_object_or_404(Job, id=job_id)
+
+    if request.method == 'POST':
+        submitted_text = request.POST.get('serial_numbers_text', '')
+        submitted_serials = {s.strip() for s in submitted_text.splitlines() if s.strip()}
+
+        if not submitted_serials:
+            messages.error(request, "You must enter at least one serial number.")
+            return redirect('receiving_ticket_quick_create', job_id=job.id)
+
+        # The "Smarter" Logic: Find items that are BOTH 'on_job' AND were delivered for THIS job.
+        # This is the crucial safety check.
+        items_on_this_job = DeliveryTicketItem.objects.filter(
+            ticket__job=job, 
+            is_returnable=True
+        ).values_list('item_id', flat=True)
+
+        found_items = InventoryItem.objects.filter(
+            serial_number__in=submitted_serials,
+            status='on_job',
+            id__in=items_on_this_job
+        )
+
+        found_serials = {item.serial_number for item in found_items}
+        not_found_serials = submitted_serials - found_serials
+
+        if not_found_serials:
+            messages.warning(request, f"The following serial numbers could not be found or are not valid for this job: {', '.join(not_found_serials)}")
+
+        if not found_items:
+            messages.error(request, "No valid items were found to receive.")
+            return redirect('receiving_ticket_quick_create', job_id=job.id)
+            
+        # Instead of creating a ticket, we redirect to the job detail page,
+        # passing the found item IDs as URL parameters.
+        found_item_ids = [str(item.id) for item in found_items]
+        
+        # We use a special query parameter name like 'preselect_receive'
+        redirect_url = f"{reverse('job_detail', args=[job.id])}?preselect_receive={'&preselect_receive='.join(found_item_ids)}"
+        
+        return redirect(redirect_url)
+
+    context = {'job': job}
+    return render(request, 'jobs/receiving_ticket_quick_create.html', context)

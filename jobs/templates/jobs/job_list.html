@@ -59,6 +59,12 @@
                 {% else %}
                 <a href="{% url 'reopen_job' job.id %}" class="btn btn-sm btn-info">Re-open Job</a>
                 {% endif %}
+            
+                <!-- ===== NEW EXPORT BUTTON ===== -->
+                <a href="{% url 'job_export' job.id %}" class="btn btn-sm btn-secondary" title="Export Job">
+                    <i class="bi bi-download"></i>
+                </a>
+                <!-- ===== END OF NEW BUTTON ===== -->
             </td>
         </tr>
         {% empty %}

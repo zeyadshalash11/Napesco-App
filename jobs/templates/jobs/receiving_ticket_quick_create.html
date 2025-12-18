@@ -1,0 +1,34 @@
+<!-- jobs/templates/jobs/receiving_ticket_quick_create.html -->
+{% extends "base.html" %}
+
+{% block title %}Quick Receive Ticket{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">
+    Quick Receive for Job <span class="text-muted">{{ job.job_number }}</span>
+</h1>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="serial_numbers_text" class="form-label">Serial Numbers</label>
+                <textarea class="form-control" id="serial_numbers_text" name="serial_numbers_text" rows="10"
+                    placeholder="Enter one serial number per line..."></textarea>
+                <div class="form-text">
+                    Paste or type a list of serial numbers to pre-select them on the receiving form.
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'job_detail' job.id %}" class="btn btn-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Find Items & Continue</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
