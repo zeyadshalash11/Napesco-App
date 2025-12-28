@@ -1,0 +1,62 @@
+<!-- jobs/templates/jobs/upload_inspection_report.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload Inspection Report{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">
+    Upload Inspection Report for Ticket <span class="text-muted">{{ ticket.ticket_number }}</span>
+</h1>
+
+<div class="card">
+    <div class="card-body">
+        <div class="alert alert-info">
+            <h5 class="alert-heading"><i class="bi bi-info-circle-fill"></i> File Format Instructions</h5>
+            <p>
+                The system automatically looks for columns with headers containing the words <strong>"Serial"</strong>,
+                <strong>"Status"</strong>, and (optionally) <strong>"Reason"</strong>.
+            </p>
+            <hr>
+            <p class="mb-2">
+                In the <strong>Status</strong> column, please use one of the following recognized terms (not case-sensitive):
+            </p>
+        
+            <!-- This new structure has no white boxes -->
+            <div>
+                <p class="mb-1">
+                    <strong>To mark as Available:</strong>
+                    <code>ok</code>, <code>good</code>
+                </p>
+                <p class="mb-1">
+                    <strong>To mark for Re-cut:</strong>
+                    <code>need repair</code>, <code>repair</code>
+                </p>
+                <p class="mb-1">
+                    <strong>To mark as Junk:</strong>
+                    <code>damage</code>, <code>damaged</code>
+                </p>
+            </div>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label for="report_file" class="form-label">Select Excel Report File</label>
+                <input class="form-control" type="file" id="report_file" name="report_file" accept=".xlsx, .xls"
+                    required>
+            </div>
+
+            <hr>
+
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'job_detail' ticket.job.id %}" class="btn btn-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-cloud-upload-fill me-1"></i> Upload and Process
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

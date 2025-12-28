@@ -13,11 +13,14 @@ class InventoryItemAdmin(admin.ModelAdmin):
         'serial_number', 
         'category',  
         'location', 
-        'status', 
+        'status',  
         'updated_at'
     )
-    list_editable = ('status',)
-    # Add the new statuses to the filter options
+    list_editable = ('status',) 
+
     list_filter = ('location', 'status', 'category')
     search_fields = ('serial_number', 'category__name')
     date_hierarchy = 'updated_at'
+    fields = ('serial_number', 'category', 'location', 'status', 'recut_reason')
+     
+     

@@ -20,11 +20,15 @@
                         {% elif item.status == 'on_job' %}
                         <span class="badge bg-warning text-dark">{{ item.get_status_display }}</span>
                         {% elif item.status == 're-cut' %}
-                        <span class="badge bg-info text-dark">{{ item.get_status_display }}</span>
-                        {% elif item.status == 'lih-dbr' %}
-                        <span class="badge bg-danger">{{ item.get_status_display }}</span>
+                        <span class="badge bg-info text-dark">{{ item.get_status_display }}</span>                        
+                        {% elif item.status == 'lih' %}
+                        <span class="badge bg-warning text-dark">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'junk' %}
+                        <span class="badge bg-danger">{{ item.get_status_display }}</span>                        
                         {% elif item.status == 'pending_inspection' %}
-                        <span class="badge bg-primary">{{ item.get_status_display }}</span> {# NEWLY ADDED #}
+                        <span class="badge bg-primary">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'sold' %}
+                        <span class="badge bg-dark">{{ item.get_status_display }}</span>
                         {% endif %}
                     </td>
                 </tr>

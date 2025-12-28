@@ -76,7 +76,8 @@ class DeliveryTicketAdmin(admin.ModelAdmin):
 @admin.register(ReceivingTicket)
 class ReceivingTicketAdmin(admin.ModelAdmin):
     # Add 'ticket_number' to the display and make it read-only
-    list_display = ('ticket_number', 'job', 'ticket_date')
+    list_display = ('ticket_number', 'job', 'ticket_date', 'is_fully_verified')
+
     filter_horizontal = ('items',)
     list_filter = ('ticket_date', 'job')
     date_hierarchy = 'ticket_date'

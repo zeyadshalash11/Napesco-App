@@ -21,6 +21,8 @@ from django.http import JsonResponse
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from .forms import JobAttachmentForm, JobForm 
+import openpyxl
+from django.urls import reverse
 
 @login_required
 def job_list_view(request):
@@ -103,6 +105,25 @@ def job_export_view(request, job_id):
             file_name = os.path.basename(attachment.file.name)
             with attachment.file.open('rb') as f:
                 zf.writestr(file_name, f.read())
+    
+    # ===== START: NEW LOGIC TO ADD INSPECTION REPORTS =====
+
+    # Find all receiving tickets for this job that have a report file.
+        receiving_tickets_with_reports = job.receiving_tickets.filter(inspection_report__isnull=False)
+
+        for ticket in receiving_tickets_with_reports:
+            # Get just the filename from the full path
+            report_filename = os.path.basename(ticket.inspection_report.name)
+            
+            # Create a descriptive name for the file in the zip
+            zip_filename = f"Inspection_Report_for_{ticket.ticket_number}_{report_filename}"
+            
+            # Read the file content and write it to the zip
+            with ticket.inspection_report.open('rb') as f:
+                zf.writestr(zip_filename, f.read())
+                
+        # ===== END: NEW LOGIC =====
+
 
     in_memory_zip.seek(0)
     response = HttpResponse(in_memory_zip, content_type='application/zip')
@@ -231,13 +252,26 @@ def job_detail_view(request, job_id):
         })
 
     for ticket in receiving_tickets_qs:
+        items_on_ticket = ticket.items.all()
+
+        verification_status = 'not_verified' # Default to Red
+
+        # First, check the permanent flag. If it's true, the ticket is ALWAYS green.
+        if ticket.is_fully_verified:
+            verification_status = 'fully_verified'
+
+        # ONLY if the permanent flag is false, check if a report has been uploaded.
+        # If so, it must be a partial verification (Yellow).
+        elif ticket.inspection_report:
+            verification_status = 'partially_verified'
+
         ticket_history_list.append({
             'type': 'Receiving',
             'ticket_obj': ticket,
-            # list of InventoryItem objects
-            'items_list': list(ticket.items.all())
+            'items_list': list(items_on_ticket),
+            'verification_status': verification_status,
         })
-
+        
     ticket_history = sorted(
         ticket_history_list, key=lambda t: t['ticket_obj'].ticket_date, reverse=True
     )
@@ -252,11 +286,15 @@ def job_detail_view(request, job_id):
         job=job
     ).values_list('items__id', flat=True)
 
-    on_job_items = InventoryItem.objects.filter(
-        deliveryticketitem__ticket__job=job,
-        deliveryticketitem__is_returnable=True,
+    # First, get a list of all items that have EVER been delivered for THIS specific job.
+    items_delivered_for_this_job = InventoryItem.objects.filter(
+        delivery_tickets__job=job
+    ).distinct()
+
+    # Now, from that specific list, find the ones that are STILL on the job.
+    on_job_items = items_delivered_for_this_job.filter(
         status='on_job'
-    ).select_related('category').distinct()
+    ).select_related('category')
 
     attachments = job.attachments.all()
 
@@ -367,6 +405,29 @@ def ticket_pdf_view(request, ticket_type, ticket_id):
 @login_required
 def end_job_view(request, job_id):
     job = get_object_or_404(Job, id=job_id)
+    
+    # ===== START: NEW "PENDING INSPECTION" CHECK =====
+
+    # Find all items on all receiving tickets for this job that are STILL pending inspection.
+    pending_items = InventoryItem.objects.filter(
+        receiving_tickets__job=job,
+        status='pending_inspection'
+    ).exclude(
+        status__in=['sold', 'lih', 'junk'] # Add any other "lost" statuses here
+    ).distinct()
+
+    # If any such items exist, we block the action immediately.
+    if pending_items.exists():
+        pending_serials = [item.serial_number for item in pending_items]
+        error_message = (
+            f"Cannot end job. The following {len(pending_serials)} items have not been verified "
+            f"via an inspection report and are still pending inspection: {', '.join(pending_serials)}"
+        )
+        messages.error(request, error_message)
+        # REDIRECT TO JOB DETAIL PAGE to show the error clearly
+        return redirect('job_detail', job_id=job.id)
+
+    # ===== END: NEW "PENDING INSPECTION" CHECK =====
 
     # --- THIS IS THE NEW, CORRECT LOGIC ---
     # We use the same robust calculation from the job detail page.
@@ -701,3 +762,135 @@ def receiving_ticket_quick_create_view(request, job_id):
 
     context = {'job': job}
     return render(request, 'jobs/receiving_ticket_quick_create.html', context)
+
+@login_required
+def upload_inspection_report_view(request, ticket_id):
+    ticket = get_object_or_404(ReceivingTicket, id=ticket_id)
+    job = ticket.job
+
+    if request.method == 'POST':
+        report_file = request.FILES.get('report_file')
+
+        if not report_file:
+            messages.error(request, "No file was uploaded.")
+            return redirect('upload_inspection_report', ticket_id=ticket.id)
+
+        if not report_file.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, "Invalid file type. Please upload an Excel file (.xlsx or .xls).")
+            return redirect('upload_inspection_report', ticket_id=ticket.id)
+
+        try:
+            workbook = openpyxl.load_workbook(report_file)
+            sheet = workbook.active
+
+            header_row_index = -1
+            serial_col_index = -1
+            status_col_index = -1
+            reason_col_index = -1
+
+            for i, row in enumerate(sheet.iter_rows(min_row=1, max_row=20, values_only=True)):
+                row_values = [str(cell).lower() if cell is not None else '' for cell in row]
+                found_serial, found_status = False, False
+                for j, cell_value in enumerate(row_values):
+                    if 'serial' in cell_value:
+                        serial_col_index = j
+                        found_serial = True
+                    if 'status' in cell_value:
+                        status_col_index = j
+                        found_status = True
+                    if 'reason' in cell_value: 
+                        reason_col_index = j    
+                if found_serial and found_status:
+                    header_row_index = i + 1
+                    break
+            
+            if header_row_index == -1:
+                raise ValueError("Could not find a header row with 'Serial' and 'Status' columns.")
+
+            report_data = []
+            for row in sheet.iter_rows(min_row=header_row_index + 1, values_only=True):
+                serial = row[serial_col_index]
+                status = row[status_col_index]
+                reason = row[reason_col_index] if reason_col_index != -1 else None
+
+                if serial:
+                    report_data.append({'serial': str(serial).strip(), 'status': str(status).strip().lower(), 'reason': str(reason).strip() if reason else None })
+            
+            items_on_ticket = ticket.items.all()
+            items_on_ticket_map = {item.serial_number: item for item in items_on_ticket}
+            
+            STATUS_ALIASES = {
+                'ok': 'available',
+                'good': 'available',
+                'need repair': 're-cut',
+                'repair': 're-cut', 
+                'damage': 'junk',    
+                'damaged': 'junk',        
+            }
+
+            valid_statuses = [choice[0] for choice in InventoryItem.STATUS_CHOICES]
+            updated_items = []
+            ignored_items = []
+
+            with transaction.atomic():
+                for entry in report_data:
+                    serial = entry['serial']
+                    raw_status = entry['status']
+                    reason_text = entry['reason']
+                    system_status = STATUS_ALIASES.get(raw_status, raw_status)
+
+                    if serial in items_on_ticket_map:
+                        item = items_on_ticket_map[serial]
+                       
+                        if system_status in valid_statuses:
+                            item.status = system_status
+                            if system_status == 're-cut':
+                                item.recut_reason = reason_text
+                            else:
+                                item.recut_reason = None
+
+                            updated_items.append(item)
+                        else:
+                            raise ValueError(f"Invalid or unrecognized status '{raw_status}' for serial number {serial}.")
+                    else:
+                        ignored_items.append(serial)
+            
+                if updated_items:
+                    InventoryItem.objects.bulk_update(updated_items, ['status', 'recut_reason'])
+                
+                ticket.inspection_report.save(report_file.name, report_file, save=True)
+                
+            # --- THIS BLOCK IS NOW CORRECTLY INDENTED ---
+            items_still_pending = ticket.items.filter(status='pending_inspection')
+
+# If there are no items left pending, then the ticket is fully verified.
+            if not items_still_pending.exists():
+               ticket.is_fully_verified = True
+               ticket.save()
+    
+               # Create a GREEN success message
+               success_message = f"Successfully processed the report. All items on this ticket are now verified."
+               if ignored_items:
+                   success_message += f"<br><b>Note:</b> The following items from the report were ignored because they were not on this ticket: {', '.join(ignored_items)}"
+               messages.success(request, success_message, extra_tags='safe')
+
+            else: # Some items are still pending inspection
+               # Create a YELLOW warning message
+               pending_serials = [item.serial_number for item in items_still_pending]
+               warning_message = (
+                   f"Report processed, but some items still need verification. "
+                   f"The following items are still pending inspection: {', '.join(pending_serials)}"
+                )
+               
+               if ignored_items:
+                    warning_message += f" The following items from the report were ignored: {', '.join(ignored_items)}"
+               messages.warning(request, warning_message, extra_tags='safe')
+
+            return redirect('job_detail', job_id=job.id)
+
+        except Exception as e:
+            messages.error(request, f"An error occurred while processing the file: {e}")
+            return redirect('upload_inspection_report', ticket_id=ticket.id)
+
+    context = {'ticket': ticket}
+    return render(request, 'jobs/upload_inspection_report.html', context)

@@ -62,7 +62,7 @@
                     </div>
 
                     <div id="delivery-sold-container" class="mt-4"></div>
-                    
+
                     <button type="submit" name="submit_delivery" class="btn btn-primary mt-3">Create Delivery
                         Ticket</button>
                 </form>
@@ -73,7 +73,7 @@
     <!-- RECEIVING TICKET BUILDER -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
-            
+
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5>Create Receiving Ticket</h5>
             </div>
@@ -195,10 +195,38 @@
                     <i class="bi bi-pencil-square"></i>
                 </a>
                 <!-- ===== END OF ICON ===== -->
-                 
+
+                <!-- ===== START: NEW VERIFICATION BUTTON LOGIC ===== -->
+                {% if entry.type == 'Receiving' %}
+
+                {# Case 1: Fully Verified (Green) #}
+                {% if entry.verification_status == 'fully_verified' %}
+                <a href="{{ entry.ticket_obj.inspection_report.url }}" target="_blank" class="btn btn-sm btn-success"
+                    title="View Report - All items on this ticket are verified.">
+                    <i class="bi bi-check-circle-fill"></i> Verified
+                </a>
+
+                {# Case 2: Partially Verified (Yellow) #}
+                {% elif entry.verification_status == 'partially_verified' %}
+                <a href="{% url 'upload_inspection_report' entry.ticket_obj.id %}" class="btn btn-sm btn-warning"
+                    title="Upload New Report - Some items are still pending inspection.">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Partially Verified
+                </a>
+
+                {# Case 3: Not Verified (Red) #}
+                {% else %}
+                <a href="{% url 'upload_inspection_report' entry.ticket_obj.id %}" class="btn btn-sm btn-danger"
+                    title="Upload Inspection Report">
+                    <i class="bi bi-file-earmark-arrow-up-fill"></i> Verify
+                </a>
+                {% endif %}
+
+                {% endif %}
+                <!-- ===== END: NEW VERIFICATION BUTTON LOGIC ===== -->
+
                 {# This link will now appear for BOTH ticket types #}
                 <button type="button" class="btn btn-sm btn-outline-secondary export-pdf-btn" data-bs-toggle="modal"
-                    data-bs-target="#pdf-info-modal" data-ticket-type="{{ entry.type }}" 
+                    data-bs-target="#pdf-info-modal" data-ticket-type="{{ entry.type }}"
                     data-url="{% url 'ticket_pdf' ticket_type=entry.type|lower ticket_id=entry.ticket_obj.id %}">
                     Export PDF
                 </button>
@@ -208,7 +236,7 @@
 
         <p class="mb-1">
             <strong>Items on ticket:</strong>
-        
+
             {% if entry.type == 'Delivery' %}
             {% for line in entry.items_list %}
             {{ line.item.serial_number }}{% if not forloop.last %}, {% endif %}
@@ -426,9 +454,9 @@
                 <div class="col-6">
                     <select class="form-select form-select-sm" name="new_status_${value}" id="new_status_${value}">
                       <option value="pending_inspection" selected>Pending Inspection</option> <!-- SET AS DEFAULT -->
-                      <option value="available">Available</option>
-                      <option value="re-cut">Re-cut</option>
-                      <option value="lih-dbr">LIH-DBR</option>
+                      <option value="lih">LIH</option>
+                      <option value="junk">Junk</option>
+                      <option value="sold">Sold</option>
                     </select>
                 </div>
             `;

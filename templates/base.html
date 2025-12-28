@@ -1,5 +1,5 @@
 <!-- templates/base.html -->
-{% load django_htmx %} <!-- The only change is on this line -->
+{% load django_htmx %} 
 {% load static %}
 <!doctype html>
 <html lang="en">
@@ -90,17 +90,17 @@
                 {% if messages %}
                 <div class="mb-3">
                     {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" data-auto-dismiss="true">
+                <!--   <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert" data-auto-dismiss="true">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                    </div> -->
                     {% endfor %}
-                </div>
+                </div>  
                 {% endif %}
             
                 {% block content %}
                 {% endblock %}
-            </div>
+            </div> 
 
         </main>
     </div>

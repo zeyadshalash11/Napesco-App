@@ -3,7 +3,16 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<h1 class="mb-4">{{ title }}</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>{{ title }}</h1>
+
+    {# This button will only appear if a status filter is active (e.g., from the dashboard) #}
+    {% if status_filter %}
+    <a href="{% url 'export_inventory_to_excel' %}?status={{ status_filter }}" class="btn btn-success">
+        <i class="bi bi-file-earmark-excel-fill"></i> Export to Excel
+    </a>
+    {% endif %}
+</div>
 
 <!-- Search Bar -->
 <form method="GET" class="mb-4">
@@ -25,6 +34,9 @@
                     <th>Category</th>
                     <th>Location</th>
                     <th>Status</th>
+                    {% if status_filter == 're-cut' %}
+                    <th>Reason</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -39,19 +51,26 @@
                         {% elif item.status == 'on_job' %}
                         <span class="badge bg-warning text-dark">{{ item.get_status_display }}</span>
                         {% elif item.status == 're-cut' %}
-                        <span class="badge bg-info text-dark">{{ item.get_status_display }}</span>
-                        {% elif item.status == 'lih-dbr' %}
-                        <span class="badge bg-danger">{{ item.get_status_display }}</span>
+                        <span class="badge bg-info text-dark">{{ item.get_status_display }}</span>                    
+                        {% elif item.status == 'lih' %}
+                        <span class="badge bg-warning text-dark">{{ item.get_status_display }}</span>
+                        {% elif item.status == 'junk' %}
+                        <span class="badge bg-danger">{{ item.get_status_display }}</span>                    
                         {% elif item.status == 'pending_inspection' %}
                         <span class="badge bg-primary">{{ item.get_status_display }}</span>
                         {% elif item.status == 'sold' %}
                         <span class="badge bg-dark">{{ item.get_status_display }}</span>
                         {% endif %}
                     </td>
+                    {% if status_filter == 're-cut' %}
+                    <td>{{ item.recut_reason|default:"---" }}</td>
+                    {% endif %}
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted">No items found.</td>
+                    {# --- UPDATED: This makes the "No items" message span the correct number of columns --- #}
+                    <td colspan="{% if status_filter == 're-cut' %}5{% else %}4{% endif %}" class="text-center text-muted">No items
+                        found.</td>
                 </tr>
                 {% endfor %}
             </tbody>

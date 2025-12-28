@@ -3,81 +3,326 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Napesco Portal - Login</title>
 
-    <!-- LOAD CSS LOCALLY FOR THE LOGIN PAGE -->
+    <!-- Bootstrap -->
     <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
 
+    <!-- Modern UI font (optional but makes it look premium) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        /* Custom styles for the standalone login page */
+        :root {
+            --brand: #22c55e;
+            /* modern green */
+            --brand-dark: #16a34a;
+            --ink: #0f172a;
+            /* slate-900 */
+            --muted: #64748b;
+            /* slate-500 */
+            --card: rgba(255, 255, 255, .78);
+            --stroke: rgba(15, 23, 42, .10);
+            --shadow: 0 20px 60px rgba(2, 6, 23, .16);
+            --radius: 22px;
+        }
+
         html,
         body {
             height: 100%;
         }
 
         body {
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+
+        /* ---------- Background (NOT plain gray) ---------- */
+        .bg-mesh {
+            min-height: 100%;
+            display: grid;
+            place-items: center;
+            padding: 48px 16px;
+            background:
+                radial-gradient(1200px 600px at 10% 10%, rgba(34, 197, 94, .22), transparent 55%),
+                radial-gradient(900px 500px at 90% 20%, rgba(56, 189, 248, .20), transparent 55%),
+                radial-gradient(900px 600px at 50% 100%, rgba(99, 102, 241, .18), transparent 60%),
+                linear-gradient(180deg, #f8fafc, #eef2ff);
+            position: relative;
+        }
+
+        /* subtle “noise” texture for modern feel */
+        .bg-mesh::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+            opacity: .25;
+            pointer-events: none;
+        }
+
+        /* ---------- Card Layout ---------- */
+        .auth-shell {
+            width: min(980px, 100%);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--stroke);
+            background: var(--card);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-grid {
+            display: grid;
+            grid-template-columns: 1.05fr 1fr;
+            min-height: 520px;
+        }
+
+        /* Left brand panel */
+        .brand-panel {
+            padding: 40px;
+            background:
+                radial-gradient(800px 500px at 20% 10%, rgba(34, 197, 94, .30), transparent 55%),
+                radial-gradient(700px 450px at 90% 35%, rgba(56, 189, 248, .22), transparent 55%),
+                linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .30));
+            border-right: 1px solid rgba(15, 23, 42, .08);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 28px;
+        }
+
+        .brand-top {
             display: flex;
             align-items: center;
+            gap: 14px;
+        }
+
+        .logo {
+            width: 180px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .brand-title {
+            margin: 6px 0 0;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            font-size: 26px;
+            line-height: 1.15;
+        }
+
+        .brand-sub {
+            margin: 10px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 42ch;
+        }
+
+        .brand-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .badge-pill {
+            border: 1px solid rgba(15, 23, 42, .10);
+            background: rgba(255, 255, 255, .55);
+            color: rgba(15, 23, 42, .75);
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Right form panel */
+        .form-panel {
+            padding: 44px 40px;
+            display: flex;
+            flex-direction: column;
             justify-content: center;
-            background-color: #e9ecef;
-            /* A slightly darker background */
-            padding-top: 40px;
-            padding-bottom: 40px;
+            gap: 18px;
+            background: rgba(255, 255, 255, .55);
         }
 
-        .login-container {
-            width: 100%;
-            max-width: 450px;
-            padding: 2.5rem;
-            background-color: #ffffff;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        .form-head h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
 
-        .login-logo {
-            max-width: 250px;
-            margin-bottom: 1.5rem;
+        .form-head p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* Inputs */
+        .form-floating>.form-control {
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, .14);
+            background: rgba(255, 255, 255, .80);
+            height: 56px;
+            padding: 1rem 1rem;
+            transition: box-shadow .18s ease, border-color .18s ease, transform .08s ease;
+        }
+
+        .form-floating>label {
+            padding: 1rem 1rem;
+            color: rgba(15, 23, 42, .60);
         }
 
         .form-control:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+            border-color: rgba(34, 197, 94, .55) !important;
+            box-shadow: 0 0 0 .22rem rgba(34, 197, 94, .18) !important;
+        }
+
+        /* Button */
+        .btn-modern {
+            height: 52px;
+            border-radius: 14px;
+            border: 0;
+            font-weight: 700;
+            letter-spacing: .2px;
+            background: linear-gradient(135deg, var(--brand), #34d399);
+            box-shadow: 0 12px 30px rgba(34, 197, 94, .22);
+            transition: transform .08s ease, box-shadow .18s ease, filter .18s ease;
+        }
+
+        .btn-modern:hover {
+            filter: brightness(0.98);
+            box-shadow: 0 14px 36px rgba(34, 197, 94, .26);
+        }
+
+        .btn-modern:active {
+            transform: translateY(1px);
+        }
+
+        .error-alert {
+            border-radius: 14px;
+            border: 1px solid rgba(239, 68, 68, .18);
+            background: rgba(254, 242, 242, .75);
+            color: #991b1b;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .fineprint {
+            margin-top: 10px;
+            color: rgba(15, 23, 42, .45);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        /* Mobile */
+        @media (max-width: 900px) {
+            .auth-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .brand-panel {
+                border-right: 0;
+                border-bottom: 1px solid rgba(15, 23, 42, .08);
+            }
+
+            .form-panel {
+                padding: 32px 22px;
+            }
+
+            .brand-panel {
+                padding: 32px 22px;
+            }
+
+            .brand-sub {
+                max-width: 60ch;
+            }
         }
     </style>
 </head>
 
-<body class="text-center">
+<body>
+    <div class="bg-mesh">
+        <main class="auth-shell">
+            <section class="auth-grid">
 
-    <main class="login-container">
-        <img src="{% static 'img/napesco_logo.png' %}" alt="Napesco Logo" class="login-logo">
+                <!-- LEFT: brand / visual -->
+                <div class="brand-panel">
+                    <div>
+                        <div class="brand-top">
+                            <img src="{% static 'img/napesco_logo.png' %}" alt="Napesco Logo" class="logo">
+                        </div>
 
-        <h3 class="mb-4">Portal Login</h3>
+                        <h1 class="brand-title">Napesco Portal</h1>
+                        <p class="brand-sub">
+                            Secure access to internal tools and approvals.
+                            Sign in using your company credentials.
+                        </p>
 
-        {% if form.errors %}
-        <div class="alert alert-danger" role="alert">
-            Your username and password didn't match. Please try again.
-        </div>
-        {% endif %}
+                        <div class="brand-badges mt-3">
+                            <span class="badge-pill">SSO-ready</span>
+                            <span class="badge-pill">Role-based access</span>
+                            <span class="badge-pill">Audit-friendly</span>
+                        </div>
+                    </div>
 
-        <form method="post" action="{% url 'login' %}">
-            {% csrf_token %}
-            <div class="form-floating mb-3">
-                <input type="text" name="username" class="form-control" id="id_username" placeholder="Username" required
-                    autofocus>
-                <label for="id_username">Username</label>
-            </div>
-            <div class="form-floating mb-4">
-                <input type="password" name="password" class="form-control" id="id_password" placeholder="Password"
-                    required>
-                <label for="id_password">Password</label>
-            </div>
-            <button class="w-100 btn btn-lg btn-primary" type="submit">Sign in</button>
-            <p class="mt-5 mb-3 text-muted">&copy; Napesco {% now "Y" %}</p>
-        </form>
-    </main>
+                    <div class="small" style="color: rgba(15,23,42,.45); font-weight:600;">
+                        © Napesco {% now "Y" %}
+                    </div>
+                </div>
 
+                <!-- RIGHT: form -->
+                <div class="form-panel">
+                    <div class="form-head">
+                        <h2>Sign in</h2>
+                        <p>Welcome back. Please enter your login details.</p>
+                    </div>
+
+                    {% if form.errors %}
+                    <div class="alert error-alert mb-0" role="alert">
+                        Username or password is incorrect. Please try again.
+                    </div>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'login' %}" class="mt-2">
+                        {% csrf_token %}
+
+                        <div class="form-floating mb-3">
+                            <input type="text" name="username" class="form-control" id="id_username"
+                                placeholder="Username" required autofocus autocomplete="username">
+                            <label for="id_username">Username</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input type="password" name="password" class="form-control" id="id_password"
+                                placeholder="Password" required autocomplete="current-password">
+                            <label for="id_password">Password</label>
+                        </div>
+
+                        <button class="btn btn-modern w-100" type="submit">
+                            Sign in
+                        </button>
+
+                        <div class="fineprint">
+                            Protected area • Authorized users only
+                        </div>
+                    </form>
+                </div>
+
+            </section>
+        </main>
+    </div>
 </body>
 
 </html>

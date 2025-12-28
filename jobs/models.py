@@ -4,7 +4,7 @@ from django.utils import timezone
 from inventory.models import InventoryItem , ProductCategory
 import uuid # We'll use this to generate unique ticket numbers
 from django.contrib.auth.models import User
-
+import os
 
 def can_close(self):
     # Items delivered that MUST be returned
@@ -120,7 +120,7 @@ class DeliveryTicket(models.Model):
 
 class DeliveryTicketItem(models.Model):
     ticket = models.ForeignKey('DeliveryTicket', on_delete=models.CASCADE, related_name='lines')
-    item = models.ForeignKey(InventoryItem, on_delete=models.PROTECT)
+    item = models.ForeignKey(InventoryItem, on_delete=models.SET_NULL, null=True)
     is_returnable = models.BooleanField(default=True)  # False = SOLD / non-returnable
 
     class Meta:
@@ -128,6 +128,23 @@ class DeliveryTicketItem(models.Model):
 
     def __str__(self):
         return f"{self.ticket.ticket_number} - {self.item.serial_number} ({'Return' if self.is_returnable else 'Sold'})"
+
+def inspection_report_upload_path(instance, filename):
+    """
+    Generates a custom upload path for an inspection report.
+    Example: inspection_reports/RT-005_inspection_report.xlsx
+    """
+    # Get the original file extension (e.g., ".xlsx")
+    extension = os.path.splitext(filename)[1]
+    
+    # Get the ticket number from the ReceivingTicket instance
+    ticket_number = instance.ticket_number
+    
+    # Create the new, descriptive filename
+    new_filename = f"{ticket_number}_inspection_report{extension}"
+    
+    # Return the full path for the upload
+    return os.path.join('inspection_reports', new_filename)
 
 class ReceivingTicket(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='receiving_tickets')
@@ -137,6 +154,8 @@ class ReceivingTicket(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_created')
     updated_at = models.DateTimeField(auto_now=True)
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_modified')
+    inspection_report = models.FileField(upload_to=inspection_report_upload_path, null=True, blank=True)
+    is_fully_verified = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('job', 'ticket_number')

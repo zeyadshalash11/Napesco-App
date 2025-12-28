@@ -2,7 +2,7 @@
 from django.db import models
 
 class ProductCategory(models.Model):
-    name = models.CharField(max_length=200, unique=True)
+    name = models.CharField(max_length=255, unique=True)
     unit = models.CharField(max_length=100, blank=True, null=True, help_text="e.g., 'pcs', 'joint', 'meter'")
     quantity = models.PositiveIntegerField(default=0)   
 
@@ -23,7 +23,8 @@ class InventoryItem(models.Model):
         ('available', 'Available'),
         ('on_job', 'On Job'),
         ('re-cut', 'Re-cut'),
-        ('lih-dbr', 'LIH-DBR'),
+        ('lih', 'LIH'),
+        ('junk', 'Junk'),
         ('pending_inspection', 'Pending Inspection'),
         ('sold', 'Sold'),
     ]
@@ -32,7 +33,8 @@ class InventoryItem(models.Model):
     category = models.ForeignKey(ProductCategory, on_delete=models.PROTECT, related_name="items")
     location = models.CharField(max_length=50, choices=LOCATION_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')    
-    
+    recut_reason = models.CharField(max_length=255, blank=True, null=True, help_text="Reason for re-cut, if applicable.")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

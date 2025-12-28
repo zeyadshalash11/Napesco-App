@@ -31,6 +31,7 @@ urlpatterns = [
     path('quick-create-delivery/<int:job_id>/', views.delivery_ticket_quick_create_view, name='delivery_ticket_quick_create'),
     path('quick-create-receiving/<int:job_id>/', views.receiving_ticket_quick_create_view, name='receiving_ticket_quick_create'),
     path('ajax/bulk-check-contract/<int:job_id>/', views.bulk_check_contract_view, name='ajax_bulk_check_contract'),
+    path('receiving-ticket/<int:ticket_id>/upload-report/', views.upload_inspection_report_view, name='upload_inspection_report'),
     
     path('ticket/edit/<str:ticket_type>/<int:ticket_id>/', views.ticket_edit_view, name='ticket_edit'),
     

@@ -36,8 +36,8 @@ def normalize_status(v):
         "pending_inspection": "pending_inspection",
         "re cut": "re-cut",
         "re-cut": "re-cut",
-        "lih dbr": "lih-dbr",
-        "lih-dbr": "lih-dbr",
+        "lih": "lih",
+        "junk": "junk",
         "": "",
     }
     return STATUS_ALIASES.get(key, _norm(v))
@@ -139,7 +139,11 @@ def process_inventory_file(df, *, strict=False):
         # Category create/get + set unit on category if needed
         category = cats_by_name.get(cat_name)
         if not category:
-            category = ProductCategory.objects.create(name=cat_name, unit=unit or None)
+            # This is the fix: get_or_create is database-safe.
+            category, created = ProductCategory.objects.get_or_create(
+                name=cat_name, 
+                defaults={'unit': unit or None}
+            )
             cats_by_name[cat_name] = category
         else:
             if unit and not category.unit:

@@ -12,6 +12,9 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import JsonResponse
 from django.db.models import Q
+from django.http import HttpResponse
+import openpyxl
+from openpyxl.utils import get_column_letter
 
 @login_required
 def inventory_list_view(request):
@@ -91,15 +94,20 @@ def inventory_filtered_list_view(request):
         elif status_filter == 'pending_inspection':
             title = "Items Pending Inspection"
             queryset = queryset.filter(status='pending_inspection')
-        elif status_filter == 'attention':
-            title = "Items Requiring Attention"
-            queryset = queryset.filter(models.Q(status='re-cut') | models.Q(status='lih-dbr'))
+        elif status_filter == 're-cut':
+            title = "Items to be Recut"
+            queryset = queryset.filter(status='re-cut')
+        elif status_filter == 'lih':
+            title = "LIH Items"
+            queryset = queryset.filter(status='lih')
+        elif status_filter == 'junk':
+            title = "Junk Items"
+            queryset = queryset.filter(status='junk')
         elif status_filter == 'sold':
             title = "Sold Items"
             queryset = queryset.filter(status='sold')
 
     if search_query:
-        # Search by serial number or category name
         queryset = queryset.filter(
             models.Q(serial_number__icontains=search_query) |
             models.Q(category__name__icontains=search_query)
@@ -214,3 +222,77 @@ def ajax_inventory_search(request):
         })
 
     return JsonResponse(data, safe=False)
+
+@login_required
+def export_inventory_to_excel_view(request):
+    """
+    This view handles the export of filtered inventory items to an Excel file.
+    """
+    status_filter = request.GET.get('status', None)
+    
+    # --- Re-use the exact same filtering logic from inventory_filtered_list_view ---
+    queryset = InventoryItem.objects.all().select_related('category')
+    title = "Full Inventory"
+
+    if status_filter:
+        if status_filter == 'available':
+            title = "Available_Items"
+            queryset = queryset.filter(status='available')
+        elif status_filter == 'on_job':
+            title = "On_Job_Items"
+            queryset = queryset.filter(status='on_job')
+        elif status_filter == 'pending_inspection':
+            title = "Pending_Inspection_Items"
+            queryset = queryset.filter(status='pending_inspection')
+        elif status_filter == 're-cut':
+            title = "Recut_Items"
+            queryset = queryset.filter(status='re-cut')
+        elif status_filter == 'lih':
+            title = "LIH_Items"
+            queryset = queryset.filter(status='lih')
+        elif status_filter == 'junk':
+            title = "Junk_Items"
+            queryset = queryset.filter(status='junk')
+        elif status_filter == 'sold':
+            title = "Sold_Items"
+            queryset = queryset.filter(status='sold')
+
+    # --- Create the Excel file in memory ---
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = title
+
+    # Define headers
+    headers = ['Serial Number', 'Category', 'Location', 'Status', 'Updated At']
+    if status_filter == 're-cut':
+        headers.append('Reason') # Add the 'Reason' header only for re-cut items
+
+    # Write headers to the first row
+    for col_num, header in enumerate(headers, 1):
+        cell = sheet.cell(row=1, column=col_num, value=header)
+        cell.font = openpyxl.styles.Font(bold=True)
+        # Auto-adjust column width
+        sheet.column_dimensions[get_column_letter(col_num)].width = 20
+
+    # Write data rows
+    for row_num, item in enumerate(queryset, 2):
+        sheet.cell(row=row_num, column=1, value=item.serial_number)
+        sheet.cell(row=row_num, column=2, value=item.category.name)
+        sheet.cell(row=row_num, column=3, value=item.get_location_display())
+        sheet.cell(row=row_num, column=4, value=item.get_status_display())
+        sheet.cell(row=row_num, column=5, value=item.updated_at.strftime('%Y-%m-%d %H:%M'))
+        
+        if status_filter == 're-cut':
+            sheet.cell(row=row_num, column=6, value=item.recut_reason)
+
+    # --- Prepare the HTTP response ---
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    # Set the file name for the download
+    response['Content-Disposition'] = f'attachment; filename="{title}.xlsx"'
+    
+    # Save the workbook to the response
+    workbook.save(response)
+
+    return response
