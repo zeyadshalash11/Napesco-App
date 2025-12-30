@@ -35,20 +35,21 @@ if not SECRET_KEY:
 # This will read 'True' or 'False' from your .env file
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-allowed_hosts_str = os.environ.get('ALLOWED_HOSTS')
+ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '')
 
-if allowed_hosts_str:
-    # If the variable is found, split the string into a Python list
-    ALLOWED_HOSTS = allowed_hosts_str.split(',')
-else:
-    # If the variable is NOT found, default to an empty list (safe for production)
-    ALLOWED_HOSTS = []
-    
-    # http://192.168.11.143
-#python manage.py runserver 0.0.0.0:8000 --insecure
+# Start with an empty list
+ALLOWED_HOSTS = []
+
+# If the .env variable is not empty, split it and add the hosts
+if ALLOWED_HOSTS_ENV:
+    ALLOWED_HOSTS.extend(ALLOWED_HOSTS_ENV.split(','))
+
+# Now, check for the special Render hostname and add it if it exists
+RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
