@@ -10,7 +10,6 @@ media/
 .venv/
 staticfiles/
 
-# Secrets - DO NOT UPLOAD SETTINGS
-napesco_portal/settings.py
+
 
 .env
