@@ -1,0 +1,1 @@
+web: gunicorn napesco_portal.wsgi

@@ -6,20 +6,6 @@ import uuid # We'll use this to generate unique ticket numbers
 from django.contrib.auth.models import User
 import os
 
-def can_close(self):
-    # Items delivered that MUST be returned
-    delivered_returnable_ids = set(
-        DeliveryTicketItem.objects.filter(ticket__job=self, is_returnable=True)
-        .values_list('item_id', flat=True)
-    )
-
-    # Items received back
-    received_ids = set(
-        self.receiving_tickets.values_list('items__id', flat=True)
-    )
-
-    # Job can close if every returnable delivered item has been received
-    return delivered_returnable_ids.issubset(received_ids)
 
 class Customer(models.Model):
     name = models.CharField(max_length=200, unique=True)
@@ -146,11 +132,29 @@ def inspection_report_upload_path(instance, filename):
     # Return the full path for the upload
     return os.path.join('inspection_reports', new_filename)
 
+class ReceivingTicketItem(models.Model):
+    """This is the new 'through' model to store the usage status."""
+    USAGE_CHOICES = [
+        ('used', 'Used'),
+        ('not_used', 'Not Used'),
+        ('sold', 'Sold'),
+    ]
+    ticket = models.ForeignKey('ReceivingTicket', on_delete=models.CASCADE, related_name='lines')
+    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='receiving_ticket_items')
+    usage_status = models.CharField(max_length=10, choices=USAGE_CHOICES, default='used')
+
+    class Meta:
+        unique_together = ('ticket', 'item')
+
+    def __str__(self):
+        return f"{self.ticket.ticket_number} - {self.item.serial_number} ({self.get_usage_status_display()})"
+    
 class ReceivingTicket(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='receiving_tickets')
     ticket_number = models.CharField(max_length=100, blank=True)
     ticket_date = models.DateTimeField(auto_now_add=True)
-    items = models.ManyToManyField(InventoryItem, related_name='receiving_tickets')
+    items = models.ManyToManyField(InventoryItem, through='ReceivingTicketItem', related_name='receiving_tickets')
+    
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_created')
     updated_at = models.DateTimeField(auto_now=True)
     modified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='receiving_tickets_modified')
@@ -165,9 +169,7 @@ class ReceivingTicket(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.pk:
-            # --- THE FIX IS HERE: We filter by 'job=self.job' ---
             last_ticket = ReceivingTicket.objects.filter(job=self.job).order_by('id').last()
-            
             new_num = 1
             if last_ticket and last_ticket.ticket_number:
                 try:
@@ -175,11 +177,9 @@ class ReceivingTicket(models.Model):
                     new_num = last_num + 1
                 except (ValueError, IndexError):
                     new_num = 1
-            
             self.ticket_number = f"RT-{new_num:03d}"
-            
         super().save(*args, **kwargs)
-    
+
 
 class JobAttachment(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='attachments')

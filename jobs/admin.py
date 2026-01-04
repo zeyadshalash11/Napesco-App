@@ -1,19 +1,21 @@
+# jobs/admin.py
 
 from django.contrib import admin
-from .models import Customer, Contract, Job, DeliveryTicket, ReceivingTicket, JobAttachment
-from .models import DeliveryTicket, DeliveryTicketItem
-
+from .models import (
+    Customer, Contract, Job, DeliveryTicket, ReceivingTicket, 
+    JobAttachment, DeliveryTicketItem, ReceivingTicketItem # <-- Import the new model
+)
 
 # This allows us to show the Contract inline with the Customer for easy editing
 class ContractInline(admin.StackedInline):
     model = Contract
-    filter_horizontal = ('items',) # Use a nice widget for selecting contract items
+    filter_horizontal = ('items',)
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('name', 'created_at')
     search_fields = ('name',)
-    inlines = [ContractInline] # Add the Contract editor directly to the Customer page
+    inlines = [ContractInline]
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
@@ -22,63 +24,54 @@ class JobAdmin(admin.ModelAdmin):
     search_fields = ('job_number', 'customer__name', 'rig')
     autocomplete_fields = ('customer',)
     
-    # We will define readonly_fields and fieldsets inside a method now
-
     def get_readonly_fields(self, request, obj=None):
-        # If the object already exists (i.e., this is a "Change" page)
         if obj:
             return ('job_number',)
-        # Otherwise (this is an "Add" page)
         return ()
 
     def get_fieldsets(self, request, obj=None):
-        # If this is a "Change" page for an existing object
         if obj:
             return (
-                ('Primary Details', {
-                    'fields': ('job_type', 'customer', 'date', 'status', 'job_number')
-                }),
-                ('Location & Equipment', {
-                    'fields': ('rig', 'well', 'location', 'trans') # <-- ENSURE THIS IS 'trans'
-                }),
-                ('Notes', {
-                    'fields': ('description',),
-                    'classes': ('collapse',)
-                }),
+                ('Primary Details', {'fields': ('job_type', 'customer', 'date', 'status', 'job_number')}),
+                ('Location & Equipment', {'fields': ('rig', 'well', 'location', 'trans')}),
+                ('Notes', {'fields': ('description',), 'classes': ('collapse',)}),
             )
-        # If this is an "Add" page for a new object
         else:
             return (
-                ('Primary Details', {
-                    'fields': ('job_type', 'customer', 'date', 'status')
-                }),
-                ('Location & Equipment', {
-                    'fields': ('rig', 'well', 'location', 'trans') # <-- ENSURE THIS IS 'trans'
-                }),
-                ('Notes', {
-                    'fields': ('description',),
-                    'classes': ('collapse',)
-                }),
+                ('Primary Details', {'fields': ('job_type', 'customer', 'date', 'status')}),
+                ('Location & Equipment', {'fields': ('rig', 'well', 'location', 'trans')}),
+                ('Notes', {'fields': ('description',), 'classes': ('collapse',)}),
             )
 
 class DeliveryTicketItemInline(admin.TabularInline):
     model = DeliveryTicketItem
     extra = 0
+    autocomplete_fields = ['item'] # Makes finding items easier
 
 @admin.register(DeliveryTicket)
 class DeliveryTicketAdmin(admin.ModelAdmin):
-    # Add 'ticket_number' to the display and make it read-only
     list_display = ('ticket_number', 'job', 'ticket_date')
     list_filter = ('ticket_date', 'job')
     date_hierarchy = 'ticket_date'
-    readonly_fields = ('ticket_number',) # The ticket number is auto-generated     inlines = [DeliveryTicketItemInline]
+    readonly_fields = ('ticket_number',)
+    inlines = [DeliveryTicketItemInline]
+    
+# --- START: NEW AND MODIFIED ADMIN CLASSES ---
+
+# This is the new Inline for the Receiving Ticket page
+class ReceivingTicketItemInline(admin.TabularInline):
+    model = ReceivingTicketItem
+    extra = 0  # Start with no empty extra rows
+    autocomplete_fields = ['item'] # Use a search box for items
+    # You can specify which fields to show in the inline view
+    fields = ('item', 'usage_status') 
 
 @admin.register(ReceivingTicket)
 class ReceivingTicketAdmin(admin.ModelAdmin):
-    # Add 'ticket_number' to the display and make it read-only
     list_display = ('ticket_number', 'job', 'ticket_date', 'is_fully_verified')
-
-    filter_horizontal = ('items',)
     list_filter = ('ticket_date', 'job')
     date_hierarchy = 'ticket_date'
     readonly_fields = ('ticket_number',)
+    
+    inlines = [ReceivingTicketItemInline]
+

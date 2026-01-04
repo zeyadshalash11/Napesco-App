@@ -1,12 +1,11 @@
 import base64
 from django.shortcuts import render
 from django.urls import reverse
-from .models import Job
 from django.shortcuts import render, get_object_or_404, redirect
 from inventory.models import InventoryItem
 from django.contrib import messages
 from django.db import transaction
-from .models import Job, DeliveryTicket, DeliveryTicketItem,ReceivingTicket , JobAttachment ,Contract
+from .models import Job, DeliveryTicket, DeliveryTicketItem,ReceivingTicket , JobAttachment ,ReceivingTicketItem
 from operator import attrgetter
 from .forms import JobAttachmentForm
 from django.conf import settings
@@ -202,30 +201,68 @@ def job_detail_view(request, job_id):
 
                 # ===== RECEIVING =====
                 elif 'submit_receiving' in request.POST:
-                    selected_ids = request.POST.getlist('selected_items')
-                    if not selected_ids:
+                    # We will now get three separate lists of IDs from the form
+                    used_ids = request.POST.getlist('used_items')
+                    not_used_ids = request.POST.getlist('not_used_items')
+                    sold_ids = request.POST.getlist('sold_items')
+                    
+                    all_selected_ids = used_ids + not_used_ids + sold_ids
+                    if not all_selected_ids:
                         raise Exception("You must select at least one item to receive.")
 
                     ticket = ReceivingTicket.objects.create(job=job, created_by=request.user)
 
-                    # Lock items while updating
+                    # Get all the InventoryItem objects we need to process
                     items_to_process = list(
                         InventoryItem.objects.select_for_update()
-                        .filter(id__in=selected_ids)
+                        .filter(id__in=all_selected_ids)
                     )
+                    
+                    # Create dictionaries for fast lookups
+                    item_map = {str(item.id): item for item in items_to_process}
+                    
+                    receiving_lines_to_create = []
+                    inventory_items_to_update = []
 
-                    items_to_update = []
-                    for item in items_to_process:
-                        status_key = f'new_status_{item.id}'
-                        new_status = request.POST.get(status_key, 'available')
-                        item.status = new_status
-                        items_to_update.append(item)
+                    # Process USED items
+                    for item_id in used_ids:
+                        item = item_map.get(item_id)
+                        if item:
+                            receiving_lines_to_create.append(
+                                ReceivingTicketItem(ticket=ticket, item=item, usage_status='used')
+                            )
+                            # Set the main status to pending inspection
+                            item.status = 'pending_inspection'
+                            inventory_items_to_update.append(item)
 
-                    InventoryItem.objects.bulk_update(items_to_update, ['status'])
-
-                    # ReceivingTicket still uses normal M2M, this is fine:
-                    ticket.items.add(*items_to_process)
-
+                    # Process NOT USED items
+                    for item_id in not_used_ids:
+                        item = item_map.get(item_id)
+                        if item:
+                            receiving_lines_to_create.append(
+                                ReceivingTicketItem(ticket=ticket, item=item, usage_status='not_used')
+                            )
+                            # Set the main status to pending inspection
+                            item.status = 'pending_inspection'
+                            inventory_items_to_update.append(item)
+                    
+                    # Process SOLD items
+                    for item_id in sold_ids:
+                        item = item_map.get(item_id)
+                        if item:
+                            receiving_lines_to_create.append(
+                                ReceivingTicketItem(ticket=ticket, item=item, usage_status='sold')
+                            )
+                            # Set the main status directly to sold
+                            item.status = 'sold'
+                            inventory_items_to_update.append(item)
+                    
+                    # Create all the ReceivingTicketItem links in one query
+                    ReceivingTicketItem.objects.bulk_create(receiving_lines_to_create)
+                    
+                    # Update the status for all InventoryItems in one query
+                    InventoryItem.objects.bulk_update(inventory_items_to_update, ['status'])
+                    
                     messages.success(request, f"Successfully created Receiving Ticket {ticket.ticket_number}.")
 
         except Exception as e:
@@ -317,63 +354,78 @@ def job_detail_view(request, job_id):
         'on_job_items_json': on_job_items_for_js,
     }
     return render(request, 'jobs/job_detail.html', context)
-
 def generate_ticket_pdf_content(ticket_type, ticket_id, base_url, extra_context=None):
     """
     Generates PDF content for a ticket using the app's specific logic.
     - base_url is required for WeasyPrint to find static files like CSS/images.
     - extra_context is a dict for optional data like driver_name, truck_no, etc.
     """
-    # 1. Fetch the ticket object
+    items_by_category = {} # Define this at the top
+
     if ticket_type == 'delivery':
         ticket = get_object_or_404(DeliveryTicket, id=ticket_id)
         template_name = 'jobs/pdf/delivery_ticket_pdf.html'
-        # Delivery tickets get items from the 'lines' related manager
-        items_on_ticket = [line.item for line in ticket.lines.select_related('item__category').all()]
+        
+        # Delivery ticket logic remains the same
+        items_on_ticket = [line.item for line in ticket.lines.select_related('item__category').all() if line.item]
+        for item in items_on_ticket:
+            category_name = item.category.name
+            if category_name not in items_by_category:
+                items_by_category[category_name] = {'count': 0, 'serials': [], 'unit': item.category.unit}
+            items_by_category[category_name]['count'] += 1
+            items_by_category[category_name]['serials'].append(item.serial_number)
+
     elif ticket_type == 'receiving':
         ticket = get_object_or_404(ReceivingTicket, id=ticket_id)
         template_name = 'jobs/pdf/receiving_ticket_pdf.html'
-        # Receiving tickets get items directly from the 'items' manager
-        items_on_ticket = list(ticket.items.select_related('category').all())
+        
+        # --- START: NEW LOGIC FOR RECEIVING TICKETS ---
+        
+        # Instead of fetching items directly, we fetch the "line" items 
+        # that contain the usage_status.
+        line_items = ticket.lines.select_related('item__category').all()
+
+        for line in line_items:
+            item = line.item
+            if not item: continue # Skip if the item has been deleted
+
+            category_name = item.category.name
+            if category_name not in items_by_category:
+                items_by_category[category_name] = {'count': 0, 'serials': [], 'unit': item.category.unit}
+            
+            items_by_category[category_name]['count'] += 1
+            
+            # This is the key change: format the serial string with the usage status
+            usage_display = line.get_usage_status_display() # Gets the friendly name, e.g., "Used"
+            formatted_serial = f"{item.serial_number} ({usage_display})"
+            
+            items_by_category[category_name]['serials'].append(formatted_serial)
+        
+        # --- END: NEW LOGIC FOR RECEIVING TICKETS ---
+
     else:
-        # This case should not be reached with valid URLs
         return None, None
 
     job = ticket.job
 
-    # 2. Group items by category (your exact logic)
-    items_by_category = {}
-    for item in items_on_ticket:
-        category_name = item.category.name
-        if category_name not in items_by_category:
-            items_by_category[category_name] = {'count': 0, 'serials': [], 'unit': item.category.unit}
-        
-        items_by_category[category_name]['count'] += 1
-        items_by_category[category_name]['serials'].append(item.serial_number)
-
-    # 3. Build the context dictionary
     context = {
         'ticket': ticket,
         'job': job,
         'items_by_category': items_by_category,
     }
 
-    # Add optional context if provided (for driver name, etc.)
     if extra_context:
         context.update(extra_context)
     
-    # Add the creator's name to the context
     creator_name = ticket.created_by.get_full_name() or ticket.created_by.username if ticket.created_by else "N/A"
     if ticket_type == 'delivery':
         context['delivered_by'] = creator_name
     elif ticket_type == 'receiving':
         context['received_by'] = creator_name
 
-    # 4. Render HTML and generate PDF
     html_string = render_to_string(template_name, context)
     pdf_file = HTML(string=html_string, base_url=base_url).write_pdf()
 
-    # 5. Return the raw PDF content and the ticket number
     return pdf_file, ticket.ticket_number
 
 @login_required

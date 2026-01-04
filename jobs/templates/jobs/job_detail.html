@@ -70,24 +70,38 @@
         </div>
     </div>
 
-    <!-- RECEIVING TICKET BUILDER -->
+    <!-- RECEIVING TICKET BUILDER (NEW "THREE BOXES" LAYOUT) -->
     <div class="col-lg-6 mb-4">
         <div class="card h-100">
-
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
                 <h5>Create Receiving Ticket</h5>
             </div>
             <div class="card-body">
                 <form method="POST" id="receiving-form">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="receiving-select" class="form-label">Search & Select On Job Items:</label>
-                        <select id="receiving-select" name="selected_items" multiple
-                            placeholder="Type a serial number..."></select>
+
+                    <!-- Box 1: USED Items -->
+                    <div class="mb-4">
+                        <label for="used-items-select" class="form-label">1. Add (<strong>USED</strong>) Items</label>
+                        <select id="used-items-select" name="used_items" multiple
+                            placeholder="Search by serial number..."></select>
                     </div>
-                    <!-- This container is where status dropdowns will appear -->
-                    <div id="receiving-status-container" class="mt-4"></div>
-                    <button type="submit" name="submit_receiving" class="btn btn-primary mt-3">Create Receiving
+
+                    <!-- Box 2: NOT USED Items -->
+                    <div class="mb-4">
+                        <label for="not-used-items-select" class="form-label">2. Add (<strong>NOT USED</strong>) Items</label>
+                        <select id="not-used-items-select" name="not_used_items" multiple
+                            placeholder="Search by serial number..."></select>
+                    </div>
+
+                    <!-- Box 3: SOLD Items -->
+                    <div class="mb-3">
+                        <label for="sold-items-select" class="form-label">3. Add (<strong>SOLD</strong>) Items</label>
+                        <select id="sold-items-select" name="sold_items" multiple
+                            placeholder="Search by serial number..."></select>
+                    </div>
+
+                    <button type="submit" name="submit_receiving" class="btn btn-primary mt-3 w-100">Create Receiving
                         Ticket</button>
                 </form>
             </div>
@@ -320,6 +334,11 @@
 
 {% block extra_js %}
 <script>
+
+    // -----------------------------------------------------------------
+    // --- SECTION 1: delivery LOGIC  ---
+    // -----------------------------------------------------------------
+
     // --- Initialize Tom Select for DELIVERY (with Submit-Time Check) ---
     const deliveryForm = document.getElementById('delivery-form');
     const deliverySoldContainer = document.getElementById('delivery-sold-container');
@@ -426,50 +445,70 @@
         }
     });
 
+    // -----------------------------------------------------------------
+    // --- SECTION 2: PDF Receiving LOGIC  ---
+    // -----------------------------------------------------------------
 
-    // --- Initialize Tom Select for RECEIVING ---
-    const receivingStatusContainer = document.getElementById('receiving-status-container');
-    const receivingTomSelect = new TomSelect('#receiving-select', {
-        valueField: 'id',
-        labelField: 'serial',
-        searchField: 'serial',
-        plugins: ['remove_button'],
-        create: false,
-        render: {
-            option: (item, escape) => `<div><strong>${escape(item.serial)}</strong> (${escape(item.category)})<br><small class="text-muted">${escape(item.location)}</small></div>`,
-            item: (item, escape) => `<div>${escape(item.serial)}</div>`
-        },
-        load: (query, callback) => {
-            if (!query.length) return callback();
-            const url = `{% url 'ajax_smart_search' job.id %}?type=on_job&q=${encodeURIComponent(query)}`;
-            fetch(url).then(res => res.json()).then(callback).catch(() => callback());
-        },
-        onItemAdd: function (value, $item) {
-            const itemName = $item.innerText.replace('×', '').trim();
-            const newStatusDiv = document.createElement('div');
-            newStatusDiv.id = `status-for-${value}`;
-            newStatusDiv.classList.add('row', 'mb-2', 'align-items-center');
-            newStatusDiv.innerHTML = `
-                <div class="col-6"><label for="new_status_${value}" class="form-label">${itemName}</label></div>
-                <div class="col-6">
-                    <select class="form-select form-select-sm" name="new_status_${value}" id="new_status_${value}">
-                      <option value="pending_inspection" selected>Pending Inspection</option> <!-- SET AS DEFAULT -->
-                      <option value="lih">LIH</option>
-                      <option value="junk">Junk</option>
-                      <option value="sold">Sold</option>
-                    </select>
-                </div>
-            `;
-            receivingStatusContainer.appendChild(newStatusDiv);
-        },
-        onItemRemove: function (value) {
-            const statusDiv = document.getElementById(`status-for-${value}`);
-            if (statusDiv) {
-                statusDiv.remove();
+    // --- Initialize Tom Select for the "THREE BOXES" RECEIVING FORM (WITH VALIDATION) ---
+
+    // This is a reusable function to create a Tom Select instance for our boxes
+    const createReceivingTomSelect = (selector) => {
+        return new TomSelect(selector, {
+            valueField: 'id',
+            labelField: 'serial',
+            searchField: ['serial', 'category'],
+            plugins: ['remove_button'],
+            create: false,
+            render: {
+                option: (item, escape) => `<div><strong>${escape(item.serial)}</strong> (${escape(item.category)})<br><small class="text-muted">${escape(item.location)}</small></div>`,
+                item: (item, escape) => `<div>${escape(item.serial)}</div>`
+            },
+            load: (query, callback) => {
+                if (!query.length) return callback();
+                const url = `{% url 'ajax_smart_search' job.id %}?type=on_job&q=${encodeURIComponent(query)}`;
+                fetch(url).then(res => res.json()).then(callback).catch(() => callback());
+            }
+        });
+    };
+
+    // --- Create an instance for each of our three boxes ---
+    const usedItemsSelect = createReceivingTomSelect('#used-items-select');
+    const notUsedItemsSelect = createReceivingTomSelect('#not-used-items-select');
+    const soldItemsSelect = createReceivingTomSelect('#sold-items-select');
+
+    // --- START: NEW VALIDATION LOGIC ---
+
+    // A helper function to check for duplicates
+    const preventDuplicates = (value, itemText, currentSelect, otherSelects) => {
+        for (const otherSelect of otherSelects) {
+            // Check if the item's ID exists in the other select boxes
+            if (otherSelect.items.includes(value)) {
+                alert(`Error: Item "${itemText}" is already in another list.`);
+                // Immediately remove the just-added item from the current box
+                currentSelect.removeItem(value, true); // 'true' makes it silent, preventing loops
+                return;
             }
         }
+    };
+
+    // Attach the validation logic to the 'item_add' event for each box
+    usedItemsSelect.on('item_add', (value, $item) => {
+        preventDuplicates(value, $item.innerText, usedItemsSelect, [notUsedItemsSelect, soldItemsSelect]);
     });
 
+    notUsedItemsSelect.on('item_add', (value, $item) => {
+        preventDuplicates(value, $item.innerText, notUsedItemsSelect, [usedItemsSelect, soldItemsSelect]);
+    });
+
+    soldItemsSelect.on('item_add', (value, $item) => {
+        preventDuplicates(value, $item.innerText, soldItemsSelect, [usedItemsSelect, notUsedItemsSelect]);
+    });
+
+    // --- END: NEW VALIDATION LOGIC ---
+
+    // -----------------------------------------------------------------
+    // --- SECTION 3: PDF MODAL LOGIC  ---
+    // -----------------------------------------------------------------
 
     const pdfInfoModalEl = document.getElementById('pdf-info-modal');
     const pdfInfoModal = new bootstrap.Modal(pdfInfoModalEl);
