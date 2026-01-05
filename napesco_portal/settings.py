@@ -41,15 +41,12 @@ if ALLOWED_HOSTS_ENV:
     ALLOWED_HOSTS.extend(ALLOWED_HOSTS_ENV.split(','))
 
 # Initialize CSRF_TRUSTED_ORIGINS as an empty list
-CSRF_TRUSTED_ORIGINS = []
-
-# Now, check for the special Railway hostname
-RAILWAY_HOSTNAME = os.environ.get('RAILWAY_STATIC_PUBLIC_HOSTNAME')
-if RAILWAY_HOSTNAME:
-    # Add the railway domain to both lists if it exists
-    ALLOWED_HOSTS.append(RAILWAY_HOSTNAME)
-    CSRF_TRUSTED_ORIGINS.append(f'https://{RAILWAY_HOSTNAME}')
-
+csrf_trusted_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if csrf_trusted_origins_str:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_origins_str.split(',')]
+else:
+    CSRF_TRUSTED_ORIGINS = []
+    
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
