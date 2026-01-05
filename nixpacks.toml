@@ -1,9 +1,7 @@
-# nixpacks.toml - Comprehensive list for PDF generation
-
 [phases.setup]
-aptPkgs = [
-  "libpango-1.0-0",
-  "libcairo2",
-  "libgobject-2.0-0",
-  "libgdk-pixbuf2.0-0"
+nixPkgs = [
+  "pango",
+  "cairo",
+  "glib",
+  "gdk-pixbuf"
 ]
