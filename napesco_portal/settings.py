@@ -104,12 +104,14 @@ WSGI_APPLICATION = 'napesco_portal.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 if 'DATABASE_URL' in os.environ:
+    # This block will run on Railway
     DATABASES = {
         'default': dj_database_url.config(
-            conn_max_age=600,
-            # --- ADD THIS CONN_PARAMS ---
-            conn_params={'init_command': "SET collation_connection = 'utf8mb4_unicode_ci'"}
+            conn_max_age=600
         )
+    }
+    DATABASES['default']['OPTIONS'] = {
+        'init_command': "SET collation_connection = 'utf8mb4_unicode_ci'"
     }
 else:
     # This block will run on your local machine, where DATABASE_URL is NOT set
