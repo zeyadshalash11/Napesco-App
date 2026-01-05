@@ -36,18 +36,19 @@ if not SECRET_KEY:
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', '')
-
-# Start with an empty list
 ALLOWED_HOSTS = []
-
-# If the .env variable is not empty, split it and add the hosts
 if ALLOWED_HOSTS_ENV:
     ALLOWED_HOSTS.extend(ALLOWED_HOSTS_ENV.split(','))
 
-# Now, check for the special Render hostname and add it if it exists
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+# Initialize CSRF_TRUSTED_ORIGINS as an empty list
+CSRF_TRUSTED_ORIGINS = []
+
+# Now, check for the special Railway hostname
+RAILWAY_HOSTNAME = os.environ.get('RAILWAY_STATIC_PUBLIC_HOSTNAME')
+if RAILWAY_HOSTNAME:
+    # Add the railway domain to both lists if it exists
+    ALLOWED_HOSTS.append(RAILWAY_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RAILWAY_HOSTNAME}')
 
 # Application definition
 INSTALLED_APPS = [
@@ -162,9 +163,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
