@@ -46,7 +46,7 @@ if csrf_trusted_origins_str:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_trusted_origins_str.split(',')]
 else:
     CSRF_TRUSTED_ORIGINS = []
-    
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -104,10 +104,12 @@ WSGI_APPLICATION = 'napesco_portal.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 if 'DATABASE_URL' in os.environ:
-    # This block will run on Render, where DATABASE_URL is set
     DATABASES = {
-        'default': dj_database_url.config(conn_max_age=600)
-
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            # --- ADD THIS CONN_PARAMS ---
+            conn_params={'init_command': "SET collation_connection = 'utf8mb4_unicode_ci'"}
+        )
     }
 else:
     # This block will run on your local machine, where DATABASE_URL is NOT set
@@ -121,7 +123,7 @@ else:
             'HOST': os.environ.get('DB_HOST'),
             'PORT': os.environ.get('DB_PORT'),
             'OPTIONS': {
-                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES', collation_connection = 'utf8mb4_unicode_ci'",
             },
         }
     }
