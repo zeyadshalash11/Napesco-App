@@ -1,7 +1,10 @@
+# nixpacks.toml
+
 [phases.setup]
-nixPkgs = [
-  "pango",
-  "cairo",
-  "glib",
-  "gdk-pixbuf"
+# This tells Nixpacks to install these system-level packages using the apt package manager
+aptPkgs = [
+    "libpango-1.0-0",
+    "libharfbuzz0b",
+    "libgobject-2.0-0",
+    "libglib2.0-0",
 ]
