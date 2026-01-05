@@ -1,1 +1,1 @@
-web: gunicorn napesco_portal.wsgi --bind 0.0.0.0:$PORT
+web: gunicorn napesco_portal.wsgi --bind 0.0.0.0:$PORT --timeout 120
