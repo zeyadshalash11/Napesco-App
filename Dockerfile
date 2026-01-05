@@ -1,4 +1,4 @@
-# Dockerfile for Napesco App on Railway (Final Version)
+# Dockerfile for Napesco App on Railway (Final Version v2)
 
 # 1. Start from an official Python image
 FROM python:3.12-slim-bookworm
@@ -6,7 +6,10 @@ FROM python:3.12-slim-bookworm
 # 2. Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV PORT 8000  # Define the port Gunicorn will listen on
+# --- ADD THIS LINE ---
+# Set a dummy SECRET_KEY during the build process. It's not used for anything
+# critical, but it prevents the app from crashing if settings are loaded.
+ENV SECRET_KEY=build-secret-key
 
 # 3. Install WeasyPrint's system dependencies
 RUN apt-get update && apt-get install -y \
@@ -29,10 +32,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 6. Copy the rest of the application code
 COPY . /app/
 
-# 7. Run collectstatic
-# This command will be run during the build process
-RUN python manage.py collectstatic --noinput
+# 7. Run collectstatic (with explicit settings)
+# --- THIS LINE IS MODIFIED ---
+# We now tell manage.py exactly which settings file to use.
+RUN python manage.py collectstatic --noinput --settings=napesco_portal.settings
 
 # 8. Define the command to run the application
-# This uses the Procfile format that Railway understands
-CMD ["gunicorn", "napesco_portal.wsgi", "--bind", "0.0.0.0:8000"]
+# This CMD is run AFTER the build, when the real environment variables are available.
+CMD ["gunicorn", "napesco_portal.wsgi", "--bind", "0.0.0.0:$PORT"]
